@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 400" width="720" font-family="Helvetica, Arial, sans-serif">
+  <!-- Wiring: verified against pin_mux_config.c and Adafruit_OLED.c GPIO usage -->
+  <rect x="0" y="0" width="720" height="400" fill="#ffffff"/>
+
+  <!-- ===== Component boxes ===== -->
+  <!-- CC3200 -->
+  <text x="365" y="68" font-size="13" fill="#000" text-anchor="middle">CC3200 LaunchPad</text>
+  <rect x="275" y="75" width="180" height="180" fill="#ffffff" stroke="#000" stroke-width="1.2"/>
+
+  <!-- BMA222 (on-board) -->
+  <text x="100" y="68" font-size="13" fill="#000" text-anchor="middle">BMA222 accelerometer</text>
+  <rect x="30" y="75" width="140" height="60" fill="#ffffff" stroke="#000" stroke-width="1.2"/>
+  <text x="100" y="152" font-size="11" fill="#000" text-anchor="middle">on-board &#183; I2C addr 0x18</text>
+
+  <!-- SSD1351 OLED -->
+  <text x="630" y="68" font-size="13" fill="#000" text-anchor="middle">SSD1351 OLED &#8212; 128&#215;128</text>
+  <rect x="560" y="75" width="140" height="145" fill="#ffffff" stroke="#000" stroke-width="1.2"/>
+  <text x="630" y="237" font-size="11" fill="#000" text-anchor="middle">RGB565 &#183; 65,536 colors</text>
+
+  <!-- USB debug UART (on-board) -->
+  <text x="115" y="283" font-size="13" fill="#000" text-anchor="middle">USB debug UART (on-board)</text>
+  <rect x="40" y="290" width="150" height="55" fill="#ffffff" stroke="#000" stroke-width="1.2"/>
+  <text x="115" y="362" font-size="11" fill="#000" text-anchor="middle">UART0 &#8212; 115200 &#183; 8N1</text>
+
+  <!-- ===== CC3200 pin rows ===== -->
+  <!-- left column -->
+  <text x="281" y="99"  font-size="11" fill="#000">SCL &#183; PIN_01</text>
+  <text x="281" y="117" font-size="11" fill="#000">SDA &#183; PIN_02</text>
+  <text x="281" y="153" font-size="11" fill="#000">TX &#183; PIN_55</text>
+  <text x="281" y="171" font-size="11" fill="#000">RX &#183; PIN_57</text>
+  <!-- right column -->
+  <text x="449" y="99"  font-size="11" fill="#000" text-anchor="end">SCLK &#183; PIN_05</text>
+  <text x="449" y="117" font-size="11" fill="#000" text-anchor="end">MOSI &#183; PIN_07</text>
+  <text x="449" y="135" font-size="11" fill="#000" text-anchor="end">CS &#183; PIN_18</text>
+  <text x="449" y="153" font-size="11" fill="#000" text-anchor="end">DC &#183; PIN_45</text>
+  <text x="449" y="171" font-size="11" fill="#000" text-anchor="end">RST &#183; PIN_08</text>
+  <text x="449" y="189" font-size="11" fill="#000" text-anchor="end">3V3</text>
+  <text x="449" y="207" font-size="11" fill="#000" text-anchor="end">GND</text>
+  <text x="449" y="225" font-size="11" fill="#000" text-anchor="end">MISO &#183; PIN_06</text>
+  <text x="449" y="243" font-size="11" fill="#000" text-anchor="end">CS &#183; PIN_50</text>
+
+  <!-- ===== BMA222 pin rows ===== -->
+  <text x="164" y="99"  font-size="11" fill="#000" text-anchor="end">SCL</text>
+  <text x="164" y="117" font-size="11" fill="#000" text-anchor="end">SDA</text>
+
+  <!-- ===== OLED pin rows ===== -->
+  <text x="566" y="99"  font-size="11" fill="#000">SCLK</text>
+  <text x="566" y="117" font-size="11" fill="#000">DIN (MOSI)</text>
+  <text x="566" y="135" font-size="11" fill="#000">CS</text>
+  <text x="566" y="153" font-size="11" fill="#000">DC</text>
+  <text x="566" y="171" font-size="11" fill="#000">RST</text>
+  <text x="566" y="189" font-size="11" fill="#000">VCC &#183; 3V3</text>
+  <text x="566" y="207" font-size="11" fill="#000">GND</text>
+
+  <!-- ===== UART bridge pin rows ===== -->
+  <text x="184" y="314" font-size="11" fill="#000" text-anchor="end">RX</text>
+  <text x="184" y="332" font-size="11" fill="#000" text-anchor="end">TX</text>
+
+  <!-- ===== Wires ===== -->
+  <!-- I2C bus: BMA222 to CC3200 -->
+  <text x="222" y="86" font-size="11" fill="#000" text-anchor="middle">I2C &#8212; 400 kHz</text>
+  <polyline points="170,95 275,95"   fill="none" stroke="#000" stroke-width="1.2"/>
+  <polyline points="170,113 275,113" fill="none" stroke="#000" stroke-width="1.2"/>
+
+  <!-- SPI + control + power: CC3200 to OLED -->
+  <text x="507" y="86" font-size="11" fill="#000" text-anchor="middle">GSPI &#8212; 100 kHz</text>
+  <polyline points="455,95 560,95"   fill="none" stroke="#000" stroke-width="1.2"/>
+  <polyline points="455,113 560,113" fill="none" stroke="#000" stroke-width="1.2"/>
+  <polyline points="455,131 560,131" fill="none" stroke="#000" stroke-width="1.2"/>
+  <polyline points="455,149 560,149" fill="none" stroke="#000" stroke-width="1.2"/>
+  <polyline points="455,167 560,167" fill="none" stroke="#000" stroke-width="1.2"/>
+  <polyline points="455,185 560,185" fill="none" stroke="#000" stroke-width="1.2"/>
+  <polyline points="455,203 560,203" fill="none" stroke="#000" stroke-width="1.2"/>
+
+  <!-- muxed but unconnected: hardware MISO and hardware CS -->
+  <polyline points="455,221 467,221" fill="none" stroke="#000" stroke-width="1.2"/>
+  <text x="471" y="225" font-size="11" fill="#000">n.c.</text>
+  <polyline points="455,239 467,239" fill="none" stroke="#000" stroke-width="1.2"/>
+  <text x="471" y="243" font-size="11" fill="#000">n.c.</text>
+
+  <!-- UART0: CC3200 to USB debug bridge -->
+  <polyline points="275,149 224,149 224,310 190,310" fill="none" stroke="#000" stroke-width="1.2"/>
+  <polyline points="275,167 232,167 232,328 190,328" fill="none" stroke="#000" stroke-width="1.2"/>
+</svg>

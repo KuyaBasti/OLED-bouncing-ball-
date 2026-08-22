@@ -1,324 +1,151 @@
-# OLED Bouncing Ball Demo for CC3200
+# OLED Bouncing Ball
 
-A physics-based bouncing ball simulation for the Texas Instruments CC3200 microcontroller, featuring accelerometer-controlled movement on a 128x128 SSD1351 OLED display.
+A tilt-controlled ball on real hardware. A **TI CC3200 LaunchPad** (Cortex-M4) polls its **on-board BMA222 accelerometer over 400 kHz I2C**, folds the tilt into ball velocity with **friction and energy-losing bounces**, and animates the ball on a **128×128 SSD1351 color OLED** driven over a **100 kHz SPI link** — while streaming the raw acceleration readings to a **115200-baud UART console**. The firmware banner calls itself *"Sliding Ball"*; everything runs from a single polled `while(FOREVER)` loop with no interrupts, no timers, and no framebuffer.
 
-![Project Demo](https://img.shields.io/badge/Platform-CC3200-blue) ![Language](https://img.shields.io/badge/Language-C-brightgreen) ![Display](https://img.shields.io/badge/Display-SSD1351%20OLED-orange)
-
-## 🎯 Overview
-
-This project demonstrates real-time physics simulation on embedded hardware by creating a bouncing ball that responds to device tilt using an accelerometer. The ball exhibits realistic physics with:
-
-- **Accelerometer-based control**: Tilt the device to apply forces to the ball
-- **Physics simulation**: Velocity, acceleration, friction, and collision detection
-- **Real-time graphics**: Smooth animation on a 128x128 color OLED display
-- **Boundary collision**: Ball bounces off screen edges with energy loss
-
-## 🏗️ Hardware Requirements
-
-### Primary Components
-- **Texas Instruments CC3200 Development Board**
-- **1.5" 128x128 RGB OLED Display (SSD1351 driver)**
-- **I2C Accelerometer** (connected to address 0x18)
-
-### Pin Configuration
-| Function | CC3200 Pin | Connection |
-|----------|------------|------------|
-| SPI MOSI | Pin 7      | OLED Data  |
-| SPI CLK  | Pin 5      | OLED Clock |
-| SPI CS   | Pin 8      | OLED CS    |
-| I2C SDA  | Pin 2      | Accelerometer SDA |
-| I2C SCL  | Pin 1      | Accelerometer SCL |
-| UART TX  | Pin 55     | Debug Output |
-| UART RX  | Pin 57     | Debug Input |
-
-## 🛠️ Software Architecture
-
-### Core Components
-
-#### 1. **Main Application** (`main.c`)
-- **Physics Engine**: Implements velocity-based movement with acceleration input
-- **Collision Detection**: Boundary checking with realistic bounce physics
-- **Sensor Interface**: I2C communication with accelerometer
-- **Display Management**: Real-time screen updates with efficient rendering
-
-#### 2. **Graphics Library** (`Adafruit_GFX.c/h`)
-- **Primitive Drawing**: Lines, rectangles, circles, triangles
-- **Text Rendering**: Built-in font support with configurable scaling
-- **Color Management**: 16-bit RGB565 color space
-- **Optimized Algorithms**: Fast drawing routines for embedded performance
-
-#### 3. **OLED Driver** (`Adafruit_OLED.c`, `Adafruit_SSD1351.h`)
-- **SSD1351 Controller**: Full driver implementation for 128x128 OLED
-- **SPI Communication**: High-speed data transfer to display
-- **Color Support**: 65,536 colors (RGB565 format)
-- **Hardware Acceleration**: Optimized for real-time graphics
-
-#### 4. **Test Suite** (`oled_test.c/h`)
-- **Display Testing**: Comprehensive test patterns and demos
-- **Performance Benchmarks**: Frame rate and rendering tests
-- **Color Verification**: RGB color space validation
-- **Font Testing**: Character set and text rendering validation
-
-### Key Features
-
-#### Physics Simulation
-```c
-// Core physics loop
-ballVelocity[0] = (ballVelocity[0] + xAcc) * 0.99;  // Friction applied
-ballVelocity[1] = (ballVelocity[1] + yAcc) * 0.99;
-ballPosition[0] += ballVelocity[0];                 // Position update
-ballPosition[1] += ballVelocity[1];
-```
-
-#### Collision Detection
-```c
-// Boundary collision with energy loss
-if (ballPosition[0] <= BALL_RADIUS) {
-    ballPosition[0] = BALL_RADIUS;
-    ballVelocity[0] *= -0.95;  // 5% energy loss on bounce
-}
-```
-
-#### Accelerometer Integration
-```c
-// Scale accelerometer data to reasonable force values
-int8_t xAcc = (int8_t)(((double)accData[0] / 64) * 6);
-int8_t yAcc = (int8_t)(((double)accData[1] / 64) * 6);
-```
-
-## 🚀 Quick Start
-
-### Prerequisites
-- **Code Composer Studio (CCS)** v12.0 or later
-- **CC3200 SDK** installed and configured
-- **Hardware setup** as described above
-
-### Build Instructions
-
-1. **Clone/Download** this repository to your local machine
-
-2. **Import Project** into Code Composer Studio:
-   ```bash
-   File → Import → Code Composer Studio → CCS Projects
-   Select the project directory
-   ```
-
-3. **Configure Target**:
-   - Right-click project → Properties
-   - Select CC3200 target configuration
-   - Verify linker command file: `cc3200v1p32.cmd`
-
-4. **Build Project**:
-   ```bash
-   Project → Build All
-   ```
-   Or use keyboard shortcut: `Ctrl+B`
-
-5. **Flash and Run**:
-   - Connect CC3200 via USB
-   - Debug → Debug As → Code Composer Studio → CC3200
-   - Press F8 to run
-
-### Configuration Options
-
-#### Display Settings
-```c
-#define SSD1351WIDTH 128
-#define SSD1351HEIGHT 128
-#define BALL_RADIUS 4
-#define SCREEN 128
-```
-
-#### Physics Parameters
-```c
-#define FRICTION_FACTOR 0.99    // Air resistance
-#define BOUNCE_DAMPING 0.95     // Energy loss on collision
-#define MAX_ACCELERATION 6      // Maximum force from accelerometer
-```
-
-#### Communication Settings
-```c
-#define SPI_IF_BIT_RATE 100000  // SPI speed (100 kHz)
-#define I2C_MASTER_MODE_FST     // I2C fast mode
-```
-
-## 📁 File Structure
-
-```
-├── main.c                  # Main application and physics engine
-├── oled_test.c            # Display test functions and demos
-├── oled_test.h            # Test function prototypes and color definitions
-├── Adafruit_GFX.c         # Graphics library implementation
-├── Adafruit_GFX.h         # Graphics library header
-├── Adafruit_OLED.c        # OLED driver implementation
-├── Adafruit_SSD1351.h     # SSD1351 controller definitions
-├── glcdfont.h             # Bitmap font data
-├── i2c_if.c               # I2C interface implementation
-├── uart_if.c              # UART interface for debugging
-├── pin_mux_config.c       # Pin multiplexer configuration
-├── pin_mux_config.h       # Pin configuration header
-├── cc3200v1p32.cmd        # Linker command file
-├── .ccsproject            # Code Composer Studio project
-├── .cproject              # C/C++ project configuration
-├── .project               # Eclipse project file
-├── Debug/                 # Build output directory
-├── .settings/             # IDE configuration
-├── .launches/             # Debug launch configurations
-└── targetConfigs/         # Target device configurations
-```
-
-## 🎮 Usage
-
-### Basic Operation
-1. **Power on** the CC3200 with connected OLED display
-2. **Observe** the white ball appear in the center of the screen
-3. **Tilt** the device to apply gravitational forces
-4. **Watch** realistic physics as the ball bounces around
-
-### Debug Output
-Connect to UART (115200 baud) to see real-time accelerometer values:
-```
-X Acc: 23, Y Acc: -15
-X Acc: 18, Y Acc: -12
-X Acc: 25, Y Acc: -18
-```
-
-### Test Functions
-Uncomment test calls in `main()` to run display demos:
-```c
-// Add before main physics loop
-testlines(WHITE);           // Line drawing test
-testfillcircles(10, BLUE); // Circle filling test
-lcdTestPattern();          // Color bar test
-testHelloWorld(GREEN);     // Text rendering test
-```
-
-## 🔧 Customization
-
-### Modify Ball Physics
-```c
-// Adjust in main.c
-int BALL_RADIUS = 6;           // Larger ball
-double FRICTION = 0.95;        // More air resistance
-double BOUNCE_ENERGY = 0.80;   // More energy loss on bounce
-```
-
-### Change Colors
-```c
-// Available colors in oled_test.h
-#define BALL_COLOR    RED      // Red ball
-#define BACKGROUND    BLUE     // Blue background
-```
-
-### Add Multiple Balls
-Extend the arrays:
-```c
-int ballPosition[MAX_BALLS][2];
-int8_t ballVelocity[MAX_BALLS][2];
-```
-
-### Modify Accelerometer Sensitivity
-```c
-// Scale factor for accelerometer input
-int8_t xAcc = (int8_t)(((double)accData[0] / 32) * 12);  // More sensitive
-```
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-#### Display Not Working
-- **Check SPI connections**: Verify MOSI, CLK, CS pins
-- **Verify power supply**: Ensure 3.3V to OLED
-- **Check initialization**: Call `Adafruit_Init()` before drawing
-
-#### Accelerometer Not Responding
-- **I2C address**: Verify accelerometer is at address 0x18
-- **Pull-up resistors**: Ensure I2C lines have 4.7kΩ pull-ups
-- **Check connections**: SDA and SCL properly connected
-
-#### Ball Movement Issues
-- **Accelerometer calibration**: May need offset correction
-- **Physics parameters**: Adjust friction and bounce factors
-- **Boundary checking**: Verify screen dimensions match constants
-
-#### Build Errors
-- **SDK path**: Verify CC3200 SDK is properly installed
-- **Include paths**: Check all header files are accessible
-- **Linker script**: Ensure `cc3200v1p32.cmd` is in project
-
-### Performance Optimization
-
-#### Frame Rate Improvements
-```c
-// Reduce delay in main loop
-// Use hardware acceleration where available
-// Minimize floating-point operations
-```
-
-#### Memory Usage
-```c
-// Current usage: ~2KB RAM
-// Stack usage: ~1KB
-// Heap usage: Minimal (static allocation)
-```
-
-## 📚 API Reference
-
-### Graphics Functions
-```c
-void fillScreen(unsigned int color);
-void fillCircle(int x, int y, int radius, unsigned int color);
-void drawLine(int x0, int y0, int x1, int y1, unsigned int color);
-void drawRect(int x, int y, int w, int h, unsigned int color);
-void fillRect(int x, int y, int w, int h, unsigned int color);
-```
-
-### Accelerometer Functions
-```c
-int8_t* ReadAccData();  // Returns [x, y] acceleration values
-```
-
-### Test Functions
-```c
-void testlines(unsigned int color);
-void testfillcircles(unsigned char radius, unsigned int color);
-void lcdTestPattern(void);
-void testHelloWorld(unsigned int color);
-```
-
-## 🤝 Contributing
-
-1. **Fork** the repository
-2. **Create** a feature branch: `git checkout -b feature/new-physics`
-3. **Commit** changes: `git commit -am 'Add gravity simulation'`
-4. **Push** to branch: `git push origin feature/new-physics`
-5. **Submit** a Pull Request
-
-### Development Guidelines
-- **Follow** existing code style and formatting
-- **Add** comments for new physics algorithms
-- **Test** on actual hardware before submitting
-- **Update** documentation for new features
-
-## 📄 License
-
-This project is based on Adafruit libraries and follows their BSD license terms. All original code additions are provided under the same BSD license.
-
-```
-BSD License - See individual source files for full license text
-Adafruit contributions: Copyright (c) Adafruit Industries
-Project modifications: Open source contributions welcome
-```
-
-## 🙏 Acknowledgments
-
-- **Adafruit Industries** - Graphics libraries and OLED driver
-- **Texas Instruments** - CC3200 SDK and development tools
-- **Contributors** - Community improvements and bug fixes
+The interesting part isn't the physics — it's the **bandwidth budget**. At 100 kHz SPI, repainting the full screen moves 32,768 data bytes: **at least 2.6 seconds of raw shift time**. So the whole game is built around never repainting: each frame erases the ball by drawing a black circle over its old position and draws a white one at the new position — roughly **340 data bytes per frame instead of 32,768**. Even the "friction" is shaped by the hardware: velocity lives in an `int8_t`, and the `× 0.99` decay truncates back to integer, which turns nominal 1%-per-frame air resistance into a flat −1 px/frame linear decay at every practical speed.
 
 ---
 
-**Project Status**: ✅ Active Development  
-**Last Updated**: January 2024  
-**Tested Platforms**: CC3200 LaunchPad, Custom CC3200 boards
+## Table of Contents
+
+1. [Wiring](#wiring)
+2. [How a Frame Happens](#how-a-frame-happens)
+3. [Repository Map](#repository-map)
+4. [The Physics — Integer Truncation Is the Real Friction](#the-physics--integer-truncation-is-the-real-friction)
+5. [The Sensor Path](#the-sensor-path)
+6. [The Display Stack](#the-display-stack)
+7. [The Pin Map](#the-pin-map)
+8. [Build & Flash](#build--flash)
+9. [Known Limitations & Sharp Edges](#known-limitations--sharp-edges)
+10. [Provenance](#provenance)
+
+---
+
+## Wiring
+
+![Wiring diagram](docs/wiring-diagram.svg)
+
+Every pin comes straight from [pin_mux_config.c](pin_mux_config.c) and the GPIO writes in [Adafruit_OLED.c](Adafruit_OLED.c). The BMA222 and the USB debug UART are on the LaunchPad itself; only the OLED is external. Two muxed SPI pins go nowhere: the SSD1351 is write-only, so `GSPI_MISO` (PIN_06) has nothing to say, and the hardware `GSPI_CS` (PIN_50) is muxed but unused — the display's actual chip select is bit-banged on PIN_18.
+
+## How a Frame Happens
+
+```mermaid
+flowchart TD
+    INIT["boot — BoardInit + PinMuxConfig<br/>SPI 100 kHz + I2C 400 kHz + UART 115200<br/>Adafruit_Init, fillScreen(BLACK)"] --> ERASE
+    ERASE["erase — fillCircle(old x, old y, 4, BLACK)"] --> READ
+    READ["ReadAccData — I2C addr 0x18<br/>write reg 0x02, burst-read 4 bytes"] --> SCALE
+    SCALE["scale — (acc / 64) × 6<br/>±2g maps to about ±11 px/frame²"] --> VEL
+    VEL["velocity = (v + acc) × 0.99<br/>truncated back to int8_t"] --> POS
+    POS["position += velocity"] --> CLAMP{"outside<br/>4..123?"}
+    CLAMP -- "yes" --> BOUNCE["clamp to the edge<br/>velocity ×= −0.95"] --> DRAW
+    CLAMP -- "no" --> DRAW["draw — fillCircle(x, y, BALL_RADIUS, WHITE)"]
+    DRAW --> ERASE
+    READ -. "Report('X Acc: %d, Y Acc: %d')<br/>over UART0" .-> UART["debug console"]
+```
+
+There is no frame timer: the loop runs as fast as its I/O completes. An r = 4 `fillCircle` costs ≈85 pixel writes (Bresenham with overdraw) at 2 bytes each, so erase + draw ≈ 340 bytes ≈ 27 ms of raw SPI shift time — a mid-30s fps ceiling before per-byte chip-select overhead and the ~2 ms blocking UART print are added. The pacing of the game *is* the latency of its peripherals.
+
+## Repository Map
+
+```text
+OLED-bouncing-ball-/
+├── README.md               # you are here
+├── SYSTEM-DESIGN.md        # the architecture-level view
+├── docs/
+│   └── wiring-diagram.svg  # board-level schematic (pins verified from pin_mux_config.c)
+├── main.c                  # the game: bring-up, ReadAccData, the physics loop
+├── pin_mux_config.c / .h   # TI PinMux-generated muxing — the wiring source of truth
+├── Adafruit_OLED.c         # SSD1351 driver: SPI transport (the lab's TODO 1–3) + init + fills
+├── Adafruit_SSD1351.h      # SSD1351 command set, 128×128 panel dimensions
+├── Adafruit_GFX.c / .h     # Adafruit graphics primitives, ported from Arduino C++ to C
+├── glcdfont.h              # classic 5×7 ASCII font table (255 glyphs × 5 bytes)
+├── oled_test.c / .h        # display demo suite — compiled but never called from main()
+├── i2c_if.c                # TI SDK common: polled I2C master (STD 100k / FST 400k)
+├── uart_if.c               # TI SDK common: UART console (InitTerm, Report, GetCmd)
+├── cc3200v1p32.cmd         # linker script — code + data entirely in SRAM at 0x20004000
+├── .project / .cproject / .ccsproject   # CCS project (cloned from the SDK spi_demo example;
+│                           #   links startup_ccs.c from the SDK — it is not in this repo)
+├── .launches/ .settings/ targetConfigs/ # IDE + Stellaris ICDI debug-probe config
+├── README.html             # TI's spi_demo docs page — SDK leftover, not this project's docs
+├── FILELIST.txt            # generated file inventory — artifact
+└── Debug/                  # build output (spi_demo.bin / .out / .map) — artifacts
+```
+
+## The Physics — Integer Truncation Is the Real Friction
+
+The state is four small integers: `ballPosition[2]` (`int`), `ballVelocity[2]` (`int8_t`), starting at the screen center (64, 64) with zero velocity. Per frame, in [main.c](main.c):
+
+```c
+ballVelocity[0] = (ballVelocity[0] + xAcc) * 0.99;   // promoted to double, truncated back
+ballPosition[0] += ballVelocity[0];
+```
+
+- **Acceleration** — `(accData / 64) * 6`: the divide-by-64 normalizes the BMA222's ±2g 8-bit reading to g units (64 LSB per g), and ×6 converts to pixels-per-frame². A full 90° tilt injects about ±6 px/frame²; the sensor's ±2g ceiling caps it near ±11.
+- **Friction** — nominally `× 0.99`, but the product is truncated back into an `int8_t`, and `(int)(v * 0.99) == v − 1` for every |v| from 1 to 99. The *actual* friction law is "lose 1 px/frame of speed every frame, toward zero" — linear decay wearing an exponential costume. It also means the ball genuinely stops (velocity 1 truncates to 0) instead of asymptotically creeping.
+- **Bounce** — walls clamp the position into `[4, 123]` (`BALL_RADIUS` to `SCREEN − BALL_RADIUS − 1`) and reflect velocity with `×= −0.95`, again truncated, so slow balls die at the wall quickly.
+
+## The Sensor Path
+
+`ReadAccData()` writes register offset `0x02` to I2C address `0x18` (decimal 24 in the code) without a stop bit, then burst-reads 4 bytes — registers `0x02–0x05`, the BMA222's X LSB/MSB and Y LSB/MSB. It keeps only the two MSBs, and it **crosses the axes on purpose**: `data[0]` (the screen-X force) is byte 3 = register `0x05`, the accelerometer's *Y* axis, and `data[1]` (screen-Y) is byte 1 = register `0x03`, the *X* axis — matching how the LaunchPad is held relative to the display's `0x74` remap. Each frame's raw readings are also printed over UART (`X Acc: %d, Y Acc: %d`), which doubles as the calibration tool: watch the numbers while tilting to see the axis mapping live.
+
+## The Display Stack
+
+Three layers, top to bottom:
+
+1. **[Adafruit_GFX.c](Adafruit_GFX.c)** — device-independent primitives: Bresenham lines and circles, rectangles, triangles, 5×7 font rendering. `fillCircle` is the only one the game uses: a center vertical line plus `fillCircleHelper`'s per-column vertical lines.
+2. **[Adafruit_OLED.c](Adafruit_OLED.c)** — the SSD1351 driver. `fillRect`/`drawFastVLine`/`drawFastHLine` are "hardware accelerated": set a GRAM window with `SETCOLUMN`/`SETROW`, issue `WRITERAM`, then stream `w × h` RGB565 pixels — the controller advances the write pointer itself. `Adafruit_Init` runs the 20-step SSD1351 bring-up (command unlock `0x12`/`0xB1`, mux ratio 127, remap `0x74`, contrast `C8/80/C8`, VSL `A0/B5/55`, display on).
+3. **The SPI transport** — the lab's actual assignment (`TODO 1–3` in the file): `writeCommand`/`writeData` drive DC (PIN_45) and CS (PIN_18) as GPIOs around a single-byte SPI transaction, with a dummy `SPIDataGet` to drain the RX FIFO. Every byte pays the full CS-toggle ceremony.
+
+## The Pin Map
+
+Verified line-by-line from [pin_mux_config.c](pin_mux_config.c) (generated by TI PinMux 4.0.1543) and the GPIO base/mask pairs in [Adafruit_OLED.c](Adafruit_OLED.c):
+
+| CC3200 pin | Configured as | Role |
+|---|---|---|
+| PIN_05 / PIN_07 | GSPI CLK / MOSI (mode 7) | OLED clock + data |
+| PIN_06 | GSPI MISO (mode 7) | muxed, unused — the SSD1351 is write-only |
+| PIN_50 | GSPI CS (mode 9) | muxed, unused — CS is bit-banged instead |
+| PIN_18 | GPIO 28 out (GPIOA3, 0x10) | OLED chip select |
+| PIN_45 | GPIO 31 out (GPIOA3, 0x80) | OLED data/command select |
+| PIN_08 | GPIO 17 out (GPIOA2, 0x02) | OLED reset |
+| PIN_01 / PIN_02 | I2C SCL / SDA (mode 1) | BMA222 (on-board) |
+| PIN_55 / PIN_57 | UART0 TX / RX (mode 3) | debug console, 115200 8N1 |
+
+## Build & Flash
+
+This is embedded firmware — you need a **CC3200 LaunchPad**, an **SSD1351 OLED wired as above**, **Code Composer Studio** (the project was built with CCS 12.5.0 and TI ARM compiler 20.2.7.LTS), and the **CC3200 SDK 1.5.0**. There is no Makefile-only path; the build lives in the CCS project files.
+
+1. Install the CC3200 SDK and fix the paths: [.project](.project) hardcodes `CC3200_SDK_ROOT` as `/Applications/TI/lib/cc3200sdk_1.5.0/cc3200-sdk` (a macOS path). Point the `CC3200_SDK_ROOT` variable at your SDK or the linked `startup_ccs.c` and the SDK headers (`uart_if.h`, `i2c_if.h`, driverlib) will not resolve.
+2. **File → Import → CCS Projects**, select this directory. The project imports as **`spi_demo`** — it was cloned from the SDK's spi_demo example and keeps the name.
+3. **Project → Build All**. The linker script [cc3200v1p32.cmd](cc3200v1p32.cmd) places everything in SRAM (code at `0x20004000`), so a debug load runs immediately without flashing.
+4. Debug via the LaunchPad's onboard Stellaris ICDI probe ([targetConfigs/CC3200.ccxml](targetConfigs/CC3200.ccxml)), or flash `Debug/spi_demo.bin` with UniFlash.
+5. Open the LaunchPad's serial port at **115200 8N1** to see the banner and the per-frame accelerometer readings.
+
+To run the display demos in [oled_test.c](oled_test.c) (`testlines`, `testfillcircles`, `lcdTestPattern`, `testHelloWorld`, …), add `#include "oled_test.h"` and call them from `main()` — nothing invokes them in the current build.
+
+## Known Limitations & Sharp Edges
+
+Honest notes — all verified in the code:
+
+- **The erase uses a literal `4`, not `BALL_RADIUS`.** `fillCircle(ballPosition[0], ballPosition[1], 4, BLACK)` erases while the draw uses `BALL_RADIUS`. Change the radius and every frame leaves a ring of trail behind.
+- **`ReadAccData`'s error path returns an integer as a pointer.** `RET_IF_ERR` does `return iRetVal;` inside a function returning `int8_t*`, so an I2C failure returns `-1` converted to a pointer — which `main` then dereferences. On healthy hardware it never trips; on a wiring fault it faults instead of degrading.
+- **`main.c` never includes the graphics headers.** `Adafruit_Init`, `fillScreen`, and `fillCircle` are implicitly declared (the includes list has no `Adafruit_*.h`). It links because the real signatures happen to take `int`-compatible arguments — but it's a C89-style trap.
+- **The reset-pin comment is stale.** `Adafruit_Init`'s comment says RESET is on "GPIO28, pin 18", but the code drives RESET on PIN_08 (GPIO17) and uses PIN_18 (GPIO28) as chip select. Rewire from the comment and the display stays dead.
+- **Init-sequence oddities inherited from Adafruit** — `CLOCKDIV`'s `0xF1`, `PRECHARGE`'s `0x32`, and `VCOMH`'s `0x05` are sent with `writeCommand` instead of `writeData` (the panel tolerates it after the `0xB1` command unlock), and the clamp math in `fillRect`/`drawFastVLine`/`drawFastHLine` is off by one (`HEIGHT − y − 1`), silently dropping the last row/column of clipped shapes.
+- **Two chip selects, one connected.** The SPI is configured `SPI_SW_CTRL_CS | SPI_CS_ACTIVEHIGH` and every byte calls `SPICSEnable`/`SPICSDisable` on the unused hardware CS (PIN_50) while the wired CS is the PIN_18 GPIO — harmless, but confusing to anyone probing pins.
+- **Heap and stack churn in the hot loop** — `Report()` mallocs and frees a 256-byte buffer every frame, `ReadAccData` burns a 256-byte stack buffer for a 4-byte read, and `main` declares an unused `char acCmdStore[512]` and `int iRetVal`.
+- **No timestep** — physics speed is whatever the SPI + UART latency allows; faster I/O would make the ball faster, not smoother.
+- **Boot repaint is slow by design** — the single `fillScreen(BLACK)` at startup is a 32,768-byte transfer: expect a couple of seconds of visible wipe at 100 kHz.
+- **`oled_test.c` is dead code in this build**, and its `delay()` comment ("delays 3*ulCount cycles") doesn't match its body (a 65,535-iteration inner loop per count).
+
+## Provenance
+
+This is coursework built on an embedded-systems lab scaffold — the evidence is in the files: [Adafruit_OLED.c](Adafruit_OLED.c) carries `TODO 1/2/3` prompts ("Write a function to send a command byte…"), [oled_test.h](oled_test.h) is headed `Author: rtsang` (Jan 2024), and the CCS project was cloned from the CC3200 SDK's `spi_demo` example (its TI docs page survives as [README.html](README.html)). The layers:
+
+- **TI SDK scaffolding** — [i2c_if.c](i2c_if.c), [uart_if.c](uart_if.c), [cc3200v1p32.cmd](cc3200v1p32.cmd), the project files, and the SDK-linked `startup_ccs.c`.
+- **Adafruit-derived** — [Adafruit_GFX.c](Adafruit_GFX.c)/[.h](Adafruit_GFX.h) (Copyright 2013 Adafruit Industries, BSD), [Adafruit_SSD1351.h](Adafruit_SSD1351.h) (written by Limor Fried/Ladyada), [glcdfont.h](glcdfont.h), and the drawing/init halves of [Adafruit_OLED.c](Adafruit_OLED.c); [oled_test.c](oled_test.c) is based on Adafruit's Arduino `test.ino`.
+- **Implemented here** — the SPI transport (`writeCommand`, `writeData`, `Adafruit_Init`'s GPIO reset/CS handling), the pin-mux selections in [pin_mux_config.c](pin_mux_config.c), and everything gameplay in [main.c](main.c): `ReadAccData` and the physics loop.
+
+Thanks to **Adafruit Industries** (graphics library and OLED driver, BSD license — retained in the source headers) and **Texas Instruments** (CC3200 SDK, driverlib, and tooling).
+
+See [SYSTEM-DESIGN.md](SYSTEM-DESIGN.md) for the architecture-level view: the full data-flow diagram, the ideas behind the design, and the numbers that matter.
