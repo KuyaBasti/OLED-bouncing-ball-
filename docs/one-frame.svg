@@ -1,0 +1,216 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1636" width="1000" height="1636" role="img" aria-label="OLED Bouncing Ball, one frame end to end, as a sequence across the debug console on UART0, the BMA222 accelerometer on I2C, main.c, Adafruit_GFX.c, the SSD1351 driver in Adafruit_OLED.c and the 128 by 128 SSD1351 panel. Steps 1 to 4, erase: fillCircle at the old position with the literal radius 4 in BLACK becomes 13 drawFastVLine calls (1 centre line plus 4 per pass for 3 passes); each sends SETCOLUMN x x, SETROW y y+h-1 and WRITERAM, then h pixels of 2 bytes; every byte goes through writeCommand or writeData, with DC on PIN_45 low for commands and high for data, CS on PIN_18 low, 8 bits shifted at 100 kHz, a dummy SPIDataGet and CS high. Steps 5 to 7, ReadAccData over polled 400 kHz I2C: write register 0x02 to address 0x18 without a STOP, restart and burst-read registers 0x02 to 0x05; data[0] is reg 0x05 and becomes screen x, data[1] is reg 0x03 and becomes screen y, so the axes are crossed. Step 8, a = (int8_t)(raw / 64 x 6). Step 9, Report prints the raw values over UART0, about 2 ms on the wire at 115200 baud. Step 10, v = (v + a) x 0.99 stored back into int8_t, so truncation is the friction, then pos += v. Step 11, clamp to 4..123 and bounce with v x -0.95. Steps 12 to 14, draw: fillCircle at the new position with BALL_RADIUS 4 in WHITE, the same 13 lines with pixels 0xFF 0xFF. The ball is off the screen from the end of the erase until step 14. One fillCircle is 261 SPI bytes, so a frame moves 522 bytes, about 42 ms of shift time at 100 kHz, at most about 24 frames per second; the next frame starts right away.">
+  <style>
+    .bg{fill:#ffffff}
+    .title{fill:#1f2328;font:600 22px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .sub{fill:#59636e;font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .lbl{fill:#1f2328;font:600 14px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .note{fill:#59636e;font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .glbl{fill:#59636e;font:600 12px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;letter-spacing:.06em}
+    .elbl{fill:#59636e;font:11px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .edge{stroke:#818b98;stroke-width:1.6;fill:none}
+    .edge-dash{stroke:#818b98;stroke-width:1.6;fill:none;stroke-dasharray:6 4}
+    .arrow{fill:#818b98}
+    .group{fill:none;stroke:#d1d9e0;stroke-width:1.2;stroke-dasharray:4 4}
+    .b-blue{fill:#ddf4ff;stroke:#54aeff;stroke-width:1.5}
+    .b-green{fill:#dafbe1;stroke:#4ac26b;stroke-width:1.5}
+    .b-purple{fill:#fbefff;stroke:#c297ff;stroke-width:1.5}
+    .b-orange{fill:#fff1e5;stroke:#fb8f44;stroke-width:1.5}
+    .b-gray{fill:#f6f8fa;stroke:#d1d9e0;stroke-width:1.5}
+    .b-red{fill:#ffebe9;stroke:#ff8182;stroke-width:1.5}
+    .b-planned{fill:none;stroke:#818b98;stroke-width:1.4;stroke-dasharray:5 4}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .wire{stroke:#59636e;stroke-width:1.4;fill:none}
+    .dot{fill:#59636e}
+    @media (prefers-color-scheme: dark){
+      .bg{fill:#0d1117}
+      .title,.lbl{fill:#e6edf3}
+      .sub,.note,.glbl,.elbl{fill:#9198a1}
+      .edge,.edge-dash{stroke:#9198a1}
+      .arrow{fill:#9198a1}
+      .group{stroke:#3d444d}
+      .b-blue{fill:#0c2d6b;stroke:#4493f8}
+      .b-green{fill:#0f3b1e;stroke:#3fb950}
+      .b-purple{fill:#2e1a4f;stroke:#ab7df8}
+      .b-orange{fill:#3d1f0a;stroke:#f0883e}
+      .b-gray{fill:#151b23;stroke:#3d444d}
+      .b-red{fill:#3c1618;stroke:#f85149}
+      .b-planned{stroke:#9198a1}
+      .wire{stroke:#9198a1}
+      .dot{fill:#9198a1}
+    }
+  </style>
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="arrow" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+  <rect class="bg" width="1000" height="1636" rx="12"/>
+  <text class="title" x="32" y="48">OLED Bouncing Ball — one frame, end to end</text>
+  <text class="sub" x="32" y="74">One pass of the while (FOREVER) loop in main.c: erase the old ball, read the tilt, step the physics, draw the new ball.</text>
+  <!-- legend -->
+  <g>
+    <rect class="b-blue" x="32" y="88" width="12" height="12" rx="3"/>
+    <text class="elbl" x="50" y="98">frame loop (main.c)</text>
+    <rect class="b-green" x="176" y="88" width="12" height="12" rx="3"/>
+    <text class="elbl" x="194" y="98">graphics stack (Adafruit_GFX.c, Adafruit_OLED.c)</text>
+    <rect class="b-red" x="478" y="88" width="12" height="12" rx="3"/>
+    <text class="elbl" x="496" y="98">hardware</text>
+    <rect class="b-orange" x="569" y="88" width="12" height="12" rx="3"/>
+    <text class="elbl" x="587" y="98">note, or a step computed inside main.c</text>
+    <line class="edge" x1="32" y1="118" x2="62" y2="118" marker-end="url(#ah)"/>
+    <text class="elbl" x="70" y="122">call, or bytes sent on a bus</text>
+    <line class="edge-dash" x1="235" y1="118" x2="265" y2="118" marker-end="url(#ah)"/>
+    <text class="elbl" x="273" y="122">bytes returned</text>
+    <rect class="b-gray" x="374" y="112" width="10" height="14" rx="2"/>
+    <text class="elbl" x="392" y="122">ball not on screen</text>
+    <rect class="group" x="510" y="111" width="30" height="16" rx="3"/>
+    <text class="elbl" x="548" y="122">repeated or grouped steps</text>
+  </g>
+  <!-- participants + lifelines -->
+  <g>
+    <line class="group" x1="82" y1="188" x2="82" y2="1590"/>
+    <line class="group" x1="240" y1="188" x2="240" y2="1590"/>
+    <line class="group" x1="412" y1="188" x2="412" y2="1590"/>
+    <line class="group" x1="586" y1="188" x2="586" y2="1590"/>
+    <line class="group" x1="756" y1="188" x2="756" y2="1590"/>
+    <line class="group" x1="916" y1="188" x2="916" y2="1590"/>
+    <rect class="b-red" x="20" y="136" width="124" height="52" rx="10"/>
+    <text class="lbl" x="82" y="158" text-anchor="middle">Debug console</text>
+    <text class="note" x="82" y="176" text-anchor="middle">UART0 (uart_if.c)</text>
+    <rect class="b-red" x="170" y="136" width="140" height="52" rx="10"/>
+    <text class="lbl" x="240" y="158" text-anchor="middle">BMA222*</text>
+    <text class="note" x="240" y="176" text-anchor="middle">on-board · I2C 0x18</text>
+    <rect class="b-blue" x="350" y="136" width="124" height="52" rx="10"/>
+    <text class="lbl" x="412" y="158" text-anchor="middle">main.c</text>
+    <text class="note" x="412" y="176" text-anchor="middle">frame loop</text>
+    <rect class="b-green" x="502" y="136" width="168" height="52" rx="10"/>
+    <text class="lbl" x="586" y="158" text-anchor="middle">Adafruit_GFX.c</text>
+    <text class="note" x="586" y="176" text-anchor="middle">Bresenham circle → lines</text>
+    <rect class="b-green" x="686" y="136" width="140" height="52" rx="10"/>
+    <text class="lbl" x="756" y="158" text-anchor="middle">SSD1351 driver</text>
+    <text class="note" x="756" y="176" text-anchor="middle">Adafruit_OLED.c</text>
+    <rect class="b-red" x="854" y="136" width="124" height="52" rx="10"/>
+    <text class="lbl" x="916" y="158" text-anchor="middle">SSD1351 panel</text>
+    <text class="note" x="916" y="176" text-anchor="middle">128 × 128 OLED</text>
+  </g>
+  <!-- fragments -->
+  <g>
+    <rect class="group" x="12" y="204" width="976" height="1372" rx="8"/>
+    <rect class="b-gray" x="12" y="204" width="352" height="26" rx="8"/>
+    <text class="glbl" x="24" y="221">loop — while (FOREVER): no timer, no delay</text>
+    <rect class="group" x="530" y="296" width="450" height="310" rx="8"/>
+    <rect class="b-gray" x="530" y="296" width="336" height="26" rx="8"/>
+    <text class="glbl" x="542" y="313">13 lines: 1 centre + 4 per pass × 3 (r = 4)</text>
+    <rect class="group" x="160" y="624" width="330" height="302" rx="8"/>
+    <rect class="b-gray" x="160" y="624" width="290" height="26" rx="8"/>
+    <text class="glbl" x="172" y="641">ReadAccData() — I2C 400 kHz, polled</text>
+    <rect class="group" x="530" y="1320" width="450" height="160" rx="8"/>
+    <rect class="b-gray" x="530" y="1320" width="214" height="26" rx="8"/>
+    <text class="glbl" x="542" y="1337">same 13 lines, now WHITE</text>
+  </g>
+  <!-- ball absent from the screen between erase and draw -->
+  <g>
+    <rect class="b-gray" x="911" y="614" width="10" height="834" rx="3"/>
+    <text class="note" x="902" y="632" text-anchor="end">no ball on screen</text>
+    <text class="note" x="902" y="648" text-anchor="end">until step 14</text>
+  </g>
+  <!-- steps, top to bottom -->
+  <g>
+    <!-- erase -->
+    <circle class="b-blue" cx="412" cy="276" r="12"/>
+    <text class="lbl" x="412" y="281" text-anchor="middle">1</text>
+    <line class="edge" x1="424" y1="276" x2="585" y2="276" marker-end="url(#ah)"/>
+    <text class="note" x="504" y="234" text-anchor="middle">erase at old x, y:</text>
+    <text class="note" x="504" y="250" text-anchor="middle">fillCircle(…, BLACK)</text>
+    <text class="note" x="504" y="266" text-anchor="middle">radius: literal 4</text>
+    <circle class="b-green" cx="586" cy="374" r="12"/>
+    <text class="lbl" x="586" y="379" text-anchor="middle">2</text>
+    <line class="edge" x1="598" y1="374" x2="755" y2="374" marker-end="url(#ah)"/>
+    <text class="note" x="676" y="348" text-anchor="middle">drawFastVLine</text>
+    <text class="note" x="676" y="364" text-anchor="middle">(x, y, h, BLACK)</text>
+    <circle class="b-green" cx="756" cy="450" r="12"/>
+    <text class="lbl" x="756" y="455" text-anchor="middle">3</text>
+    <line class="edge" x1="768" y1="450" x2="915" y2="450" marker-end="url(#ah)"/>
+    <text class="note" x="842" y="408" text-anchor="middle">SETCOLUMN x, x</text>
+    <text class="note" x="842" y="424" text-anchor="middle">SETROW y, y+h−1</text>
+    <text class="note" x="842" y="440" text-anchor="middle">WRITERAM</text>
+    <circle class="b-green" cx="756" cy="510" r="12"/>
+    <text class="lbl" x="756" y="515" text-anchor="middle">4</text>
+    <line class="edge" x1="768" y1="510" x2="915" y2="510" marker-end="url(#ah)"/>
+    <text class="note" x="842" y="484" text-anchor="middle">h pixels × 2 bytes</text>
+    <text class="note" x="842" y="500" text-anchor="middle">BLACK = 0x00 0x00</text>
+    <rect class="b-orange" x="540" y="528" width="430" height="64" rx="8"/>
+    <text class="lbl" x="552" y="550">every byte: writeCommand / writeData</text>
+    <text class="note" x="552" y="568">DC (PIN_45) low = command, high = data · CS (PIN_18) low</text>
+    <text class="note" x="552" y="584">GSPI shifts 8 bits at 100 kHz · dummy SPIDataGet · CS high</text>
+    <!-- sensor read -->
+    <circle class="b-blue" cx="412" cy="700" r="12"/>
+    <text class="lbl" x="412" y="705" text-anchor="middle">5</text>
+    <line class="edge" x1="400" y1="700" x2="241" y2="700" marker-end="url(#ah)"/>
+    <text class="note" x="320" y="674" text-anchor="middle">I2C_IF_Write(0x18):</text>
+    <text class="note" x="320" y="690" text-anchor="middle">reg 0x02, no STOP</text>
+    <circle class="b-blue" cx="412" cy="764" r="12"/>
+    <text class="lbl" x="412" y="769" text-anchor="middle">6</text>
+    <line class="edge" x1="400" y1="764" x2="241" y2="764" marker-end="url(#ah)"/>
+    <text class="note" x="320" y="738" text-anchor="middle">I2C_IF_Read(0x18):</text>
+    <text class="note" x="320" y="754" text-anchor="middle">restart, 4-byte burst</text>
+    <circle class="b-red" cx="240" cy="828" r="12"/>
+    <text class="lbl" x="240" y="833" text-anchor="middle">7</text>
+    <line class="edge-dash" x1="252" y1="828" x2="411" y2="828" marker-end="url(#ah)"/>
+    <text class="note" x="332" y="802" text-anchor="middle">regs 0x02–0x05:</text>
+    <text class="note" x="332" y="818" text-anchor="middle">X LSB/MSB, Y LSB/MSB*</text>
+    <rect class="b-orange" x="170" y="846" width="310" height="64" rx="8"/>
+    <text class="lbl" x="182" y="868">axes crossed; 0x02, 0x04 unused</text>
+    <text class="note" x="182" y="886">data[0] = reg 0x05 (sensor Y*) → screen x</text>
+    <text class="note" x="182" y="902">data[1] = reg 0x03 (sensor X*) → screen y</text>
+    <!-- physics -->
+    <rect class="b-orange" x="290" y="942" width="440" height="52" rx="8"/>
+    <circle class="b-blue" cx="312" cy="968.0" r="12"/>
+    <text class="lbl" x="312" y="973.0" text-anchor="middle">8</text>
+    <text class="note" x="334" y="964">scale: a = (int8_t)(raw / 64 × 6), per axis</text>
+    <text class="note" x="334" y="980">the cast truncates toward zero</text>
+    <rect class="bg" x="150" y="1010" width="190" height="38"/>
+    <rect class="bg" x="128" y="1058" width="228" height="38"/>
+    <circle class="b-blue" cx="412" cy="1052" r="12"/>
+    <text class="lbl" x="412" y="1057" text-anchor="middle">9</text>
+    <line class="edge" x1="400" y1="1052" x2="83" y2="1052" marker-end="url(#ah)"/>
+    <text class="note" x="242" y="1026" text-anchor="middle">Report("X Acc: %d, Y Acc: %d")</text>
+    <text class="note" x="242" y="1042" text-anchor="middle">prints raw data[0], data[1]</text>
+    <text class="note" x="242" y="1072" text-anchor="middle">malloc + vsnprintf, blocking polled put</text>
+    <text class="note" x="242" y="1088" text-anchor="middle">≈ 2 ms on the wire at 115200*</text>
+    <rect class="b-orange" x="290" y="1110" width="440" height="52" rx="8"/>
+    <circle class="b-blue" cx="312" cy="1136.0" r="12"/>
+    <text class="lbl" x="312" y="1141.0" text-anchor="middle">10</text>
+    <text class="note" x="334" y="1132">v = (v + a) × 0.99, per axis, stored back into int8_t v</text>
+    <text class="note" x="334" y="1148">storing truncates toward zero (the real friction); then pos += v</text>
+    <rect class="b-orange" x="290" y="1178" width="440" height="52" rx="8"/>
+    <circle class="b-blue" cx="312" cy="1204.0" r="12"/>
+    <text class="lbl" x="312" y="1209.0" text-anchor="middle">11</text>
+    <text class="note" x="334" y="1200">per axis: pos ≤ 4 → 4, or pos &gt; 123 → 123,</text>
+    <text class="note" x="334" y="1216">hitting either wall bounces: v ×= −0.95, truncated into int8_t</text>
+    <!-- draw -->
+    <circle class="b-blue" cx="412" cy="1300" r="12"/>
+    <text class="lbl" x="412" y="1305" text-anchor="middle">12</text>
+    <line class="edge" x1="424" y1="1300" x2="585" y2="1300" marker-end="url(#ah)"/>
+    <text class="note" x="504" y="1258" text-anchor="middle">draw at new x, y:</text>
+    <text class="note" x="504" y="1274" text-anchor="middle">fillCircle(…, WHITE)</text>
+    <text class="note" x="504" y="1290" text-anchor="middle">radius: BALL_RADIUS (4)</text>
+    <circle class="b-green" cx="586" cy="1396" r="12"/>
+    <text class="lbl" x="586" y="1401" text-anchor="middle">13</text>
+    <line class="edge" x1="598" y1="1396" x2="755" y2="1396" marker-end="url(#ah)"/>
+    <text class="note" x="676" y="1370" text-anchor="middle">drawFastVLine</text>
+    <text class="note" x="676" y="1386" text-anchor="middle">(x, y, h, WHITE)</text>
+    <circle class="b-green" cx="756" cy="1460" r="12"/>
+    <text class="lbl" x="756" y="1465" text-anchor="middle">14</text>
+    <line class="edge" x1="768" y1="1460" x2="915" y2="1460" marker-end="url(#ah)"/>
+    <text class="note" x="842" y="1434" text-anchor="middle">same window bytes</text>
+    <text class="note" x="842" y="1450" text-anchor="middle">+ pixels 0xFF 0xFF</text>
+    <rect class="b-orange" x="290" y="1496" width="690" height="64" rx="8"/>
+    <text class="lbl" x="302" y="1518">SPI bytes in one frame (shift time only)</text>
+    <text class="note" x="302" y="1536">per fillCircle: 13 × (3 command + 4 window bytes) + 85 pixels × 2 bytes = 261 bytes</text>
+    <text class="note" x="302" y="1552">erase + draw = 522 bytes × 80 µs (8 bits at 100 kHz) ≈ 42 ms, so at most ≈ 24 frames/s</text>
+    <text class="note" x="96" y="1532">next frame starts at</text>
+    <text class="note" x="96" y="1548">step 1 right away</text>
+  </g>
+    <text class="note" x="32" y="1614">* from the repo's docs, not its code: the BMA222 part name, its register names and the 115200 baud (UART_BAUD_RATE comes from an SDK header).</text>
+</svg>

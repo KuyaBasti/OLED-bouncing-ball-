@@ -1,6 +1,6 @@
 # OLED Bouncing Ball — system design
 
-> How a tilt becomes a bounce, 340 bytes at a time.
+> How a tilt becomes a bounce, about 520 bytes at a time.
 >
 > Once per loop iteration, the CC3200 asks its **on-board BMA222** for four
 > acceleration bytes over 400 kHz I2C, keeps the two most-significant ones
@@ -10,7 +10,7 @@
 > rendering**: erase a black circle at the old position, draw a white one at
 > the new position, and never touch the other 16,000 pixels — because at
 > **100 kHz SPI**, repainting the whole 128×128 SSD1351 panel costs more than
-> 2.6 seconds. There are no interrupts, no timers, and no framebuffer; the
+> 2.6 seconds. There are no interrupt handlers, no timers, and no framebuffer; the
 > frame rate is exactly the latency of the peripherals.
 
 This document is the developer-facing map of the whole system — every
@@ -23,74 +23,7 @@ flashing; the board-level schematic is
 
 ## End-to-end flowchart
 
-```mermaid
-flowchart TD
-    %% ===== Boot =====
-    subgraph BOOT["Boot — main() before the loop"]
-        board["BoardInit — vector table,<br/>PRCMCC3200MCUInit"]:::caller
-        mux["PinMuxConfig —<br/>pin_mux_config.c"]:::caller
-        buses["bus bring-up:<br/>GSPI 100 kHz mode 0 · I2C 400 kHz ·<br/>UART0 115200 (InitTerm)"]:::caller
-        oinit["Adafruit_Init — 20-step SSD1351<br/>sequence, then fillScreen(BLACK)<br/>(a 32,768-byte wipe)"]:::caller
-    end
-
-    %% ===== Frame loop =====
-    subgraph LOOP["The frame loop — main.c, no timer, no interrupts"]
-        erase["erase — fillCircle(old x, old y,<br/>literal 4, BLACK)"]:::stage
-        read["ReadAccData — write reg 0x02,<br/>burst-read 0x02..0x05,<br/>keep the two MSBs, axes crossed"]:::stage
-        phys["physics — a = (raw / 64) × 6<br/>v = (v + a) × 0.99, truncated to int8_t<br/>pos += v"]:::stage
-        clamp["clamp pos to 4..123<br/>bounce: v ×= −0.95"]:::stage
-        draw["draw — fillCircle(x, y,<br/>BALL_RADIUS, WHITE)"]:::stage
-    end
-
-    %% ===== Graphics =====
-    subgraph GFX["Graphics stack"]
-        prim["Adafruit_GFX.c — Bresenham circle<br/>decomposed into vertical lines"]:::cache
-        drv["Adafruit_OLED.c — GRAM window<br/>(SETCOLUMN + SETROW + WRITERAM),<br/>auto-advancing pixel stream"]:::cache
-        xport["SPI transport — writeCommand / writeData:<br/>DC on PIN_45, CS bit-banged on PIN_18,<br/>one byte per CS cycle"]:::cache
-    end
-
-    %% ===== SDK =====
-    subgraph SDK["TI SDK interface layer"]
-        i2c["i2c_if.c — polled I2C master"]:::comm
-        uart["uart_if.c — Report:<br/>malloc + vsnprintf per call"]:::comm
-    end
-
-    %% ===== Hardware =====
-    subgraph HW["Hardware"]
-        bma["BMA222 accelerometer<br/>addr 0x18, on-board"]:::mock
-        oled["SSD1351 OLED panel<br/>128×128 RGB565"]:::mock
-        term["USB debug console<br/>115200 8N1"]:::mock
-    end
-
-    %% ===== Dead code =====
-    subgraph DEADC["Compiled, never called"]
-        demos["oled_test.c — line/circle/triangle<br/>demos, test patterns, font test"]:::planned
-    end
-
-    board --> mux --> buses --> oinit --> erase
-    erase --> read --> phys --> clamp --> draw
-    draw -- "next frame" --> erase
-
-    erase --> prim
-    draw --> prim
-    prim --> drv --> xport --> oled
-    read --> i2c --> bma
-    read -. "X/Y readout<br/>every frame" .-> uart --> term
-    demos -.-> prim
-
-    %% ===== Styles =====
-    classDef caller fill:#F1EFE8,stroke:#5F5E5A,color:#2C2C2A,stroke-width:2px;
-    classDef stage fill:#E6F1FB,stroke:#185FA5,color:#0C447C;
-    classDef cache fill:#E1F5EE,stroke:#0F6E56,color:#085041,stroke-width:2px;
-    classDef comm fill:#EEEDFE,stroke:#534AB7,color:#3C3489,stroke-width:2px;
-    classDef mock fill:#FDEBEC,stroke:#B3261E,color:#8C1D18;
-    classDef data fill:#F1EFE8,stroke:#5F5E5A,color:#2C2C2A;
-    classDef planned fill:#F6F6F4,stroke:#888780,color:#5F5E5A,stroke-dasharray:5 4;
-```
-
-**Legend** — ⬜ boot sequence · 🟦 frame loop · 🟩 graphics stack ·
-🟪 TI SDK interface layer · 🟥 hardware ·
-◌ dashed = compiled but unreferenced (the `oled_test.c` demo suite).
+<p align="center"><img src="docs/system-design-flowchart.svg" alt="End-to-end flowchart. Boot, in main() before the loop: BoardInit, PinMuxConfig from pin_mux_config.c, bus bring-up in code order (InitTerm on UART0, I2C at 400 kHz, the banner, GSPI at 100 kHz mode 0), then display init: Adafruit_Init (reset plus 20 SSD1351 commands) and fillScreen(BLACK), a 32,768-byte wipe, both going straight to the Adafruit_OLED.c driver rather than through the graphics library. The first ball is drawn at (64, 64) with zero velocity. The frame loop in main.c is polled, with no timer and no ISRs: erase with fillCircle(old x, old y, 4, BLACK), radius a literal 4; ReadAccData writes register 0x02 to I2C address 0x18 through i2c_if.c and reads 4 bytes, keeping register 0x05 as x and 0x03 as y; scale + print computes a = (int8_t)(raw / 64 × 6) and calls Report, whose dashed readout goes through uart_if.c over UART0 to the USB debug console; integrate v = (int8_t)((v + a) × 0.99) and pos += v; clamp + bounce: pos at or below 4 becomes 4, pos above 123 becomes 123, and a wall hit multiplies v by −0.95; draw with fillCircle(x, y, BALL_RADIUS, WHITE), then the next frame. Both fillCircle calls go to Adafruit_GFX.c as 13 vertical lines (85 pixels written, 61 unique), then drawFastVLine in Adafruit_OLED.c sets a GRAM window and streams 2 bytes per pixel through writeCommand / writeData (DC on PIN_45, CS bit-banged on PIN_18) over GSPI at 100 kHz, to the 128 × 128 RGB565 SSD1351 panel, whose RST on PIN_08 is pulsed by Adafruit_Init. The oled_test.c demos use the graphics library and the driver but are compiled and never called. A dagger marks facts taken from the README rather than the code: the BMA222 part and register map, on-board placement, the USB console and 115200 baud." width="100%"></p>
 
 ---
 
@@ -101,7 +34,8 @@ flowchart TD
    whole-screen repaint costs at least 2.6 seconds of shift time before any
    per-byte overhead. The game therefore *never* repaints: each frame touches
    only two r = 4 circles (erase in black, draw in white), about 85 pixel
-   writes each, ≈340 data bytes ≈ 27 ms — a mid-30s fps ceiling instead of
+   writes each in 13 vertical lines — ≈340 pixel bytes plus 182 bytes of
+   per-line window setup, ≈522 bytes ≈ 42 ms — a ~24 fps ceiling instead of
    0.4 fps. Every structural choice downstream — no framebuffer, GRAM-window
    streaming, hardware-accelerated fills — exists to serve this budget. The
    one place the budget is ignored is boot: the single `fillScreen(BLACK)` is
@@ -109,8 +43,9 @@ flowchart TD
 
 2. **The physics lives in integers, and truncation is the real friction.**
    Velocity is an `int8_t`; the update `(v + a) * 0.99` promotes to `double`
-   and truncates back on assignment, and `(int)(v × 0.99)` equals `v − 1` for
-   every magnitude from 1 to 99. The nominal "1% air resistance" is actually
+   and truncates back on assignment, and `(int)(v × 0.99)` moves `v` exactly 1
+   toward zero (`v − 1` if positive, `v + 1` if negative) for every magnitude
+   from 1 to 99. The nominal "1% air resistance" is actually
    a linear −1 px/frame decay toward zero — which is arguably better for a
    game: the ball genuinely stops rather than creeping forever. The same
    truncation applies to the `× −0.95` bounce, so slow balls die at the wall
@@ -122,7 +57,7 @@ flowchart TD
    Arduino C++ graphics library — ported to plain C, class scaffolding left
    behind in comments — sits on TI's SDK (polled I2C, UART console, pin
    muxing, linker script, startup code linked in from the SDK itself). The
-   seam joining them is the lab's actual assignment, marked `TODO 1/2/3` in
+   seam joining them is the lab's actual assignment, marked `TODO 1/2` in
    [Adafruit_OLED.c](Adafruit_OLED.c): `writeCommand`/`writeData`, ~15 lines
    each, that bit-bang DC (PIN_45) and CS (PIN_18) around a single-byte SPI
    transaction. Everything the screen ever shows funnels through those two
@@ -132,29 +67,7 @@ flowchart TD
 
 ## Deep dive 1 — one frame, end to end
 
-```mermaid
-sequenceDiagram
-    participant L as frame loop (main.c)
-    participant G as Adafruit_GFX
-    participant D as SSD1351 driver
-    participant S as GSPI + GPIO
-    participant A as BMA222 (I2C 0x18)
-    participant U as UART0
-
-    L->>G: fillCircle(old x, old y, 4, BLACK)
-    G->>D: center VLine + per-column VLines (Bresenham)
-    D->>S: SETCOLUMN, SETROW, WRITERAM, then pixel bytes
-    S-->>D: each byte: DC + CS low, 8 bits at 100 kHz, dummy read, CS high
-    L->>A: I2C_IF_Write(0x18, reg 0x02, no stop)
-    L->>A: I2C_IF_Read(0x18, 4 bytes)
-    A-->>L: regs 0x02..0x05 — X LSB/MSB, Y LSB/MSB
-    Note over L: data[0] = reg 0x05 (sensor Y) → screen X<br/>data[1] = reg 0x03 (sensor X) → screen Y
-    L->>U: Report("X Acc: %d, Y Acc: %d") — ~2 ms, blocking
-    Note over L: a = (raw/64)×6 · v = (v+a)×0.99 truncated<br/>pos += v · clamp to 4..123 · bounce ×−0.95
-    L->>G: fillCircle(new x, new y, BALL_RADIUS, WHITE)
-    G->>D: ≈85 pixel writes = 170 data bytes
-    D->>S: ≈27 ms of raw shift time for erase + draw
-```
+<p align="center"><img src="docs/one-frame.svg" alt="Sequence diagram of one frame across six lanes: the debug console on UART0, the BMA222 accelerometer at I2C 0x18, main.c, Adafruit_GFX.c, the SSD1351 driver in Adafruit_OLED.c and the 128 × 128 SSD1351 panel. Steps 1 to 4, erase: fillCircle at the old position with a literal radius 4 in BLACK becomes 13 drawFastVLine calls (1 centre line plus 4 per pass for 3 passes); each sends SETCOLUMN x, x, SETROW y, y+h−1 and WRITERAM, then h pixels of 2 bytes, and every byte goes through writeCommand or writeData with DC on PIN_45, CS on PIN_18 low, 8 bits shifted at 100 kHz, a dummy SPIDataGet and CS high. Steps 5 to 7, ReadAccData over polled 400 kHz I2C: write register 0x02 without a STOP, then a restart and a 4-byte burst of registers 0x02 to 0x05; data[0] is reg 0x05 and becomes screen x, data[1] is reg 0x03 and becomes screen y, so the axes are crossed. Step 8 scales a = (int8_t)(raw / 64 × 6), truncating toward zero. Step 9, Report prints the raw data[0] and data[1], about 2 ms on the wire at 115200 baud. Step 10, v = (v + a) × 0.99 stored back into int8_t, so truncation is the real friction, then pos += v. Step 11, per axis: pos at or below 4 becomes 4, pos above 123 becomes 123, and hitting a wall bounces v by × −0.95, truncated. Steps 12 to 14, draw: fillCircle at the new position with BALL_RADIUS (4) in WHITE, the same 13 lines and window bytes with pixels 0xFF 0xFF. The ball is not on screen from the erase until step 14. One fillCircle is 13 × (3 command + 4 window bytes) + 85 pixels × 2 bytes = 261 bytes, so erase + draw is 522 bytes × 80 µs, about 42 ms, at most about 24 frames per second; the next frame starts at step 1 right away. A footnote says the BMA222 part name, its register names and the 115200 baud come from the docs, not the code." width="100%"></p>
 
 Things worth noticing:
 
@@ -176,18 +89,7 @@ Things worth noticing:
 
 Every pixel is two of these; every command byte is one (with DC low):
 
-```text
-writeData(c)                                   Adafruit_OLED.c
-  │
-  ├─ GPIOPinWrite(GPIOA3, 0x80, 0x80)    DC high (PIN_45) — "this byte is data"
-  ├─ GPIOPinWrite(GPIOA3, 0x10, 0x00)    CS low  (PIN_18) — panel selected
-  ├─ MAP_SPICSEnable(GSPI_BASE)          hardware CS (PIN_50 — wired to nothing)
-  ├─ MAP_SPIDataPut(GSPI_BASE, c)        8 bits shifted out at 100 kHz = 80 µs
-  ├─ MAP_SPIDataGet(GSPI_BASE, &dummy)   blocks until the shift completes;
-  │                                        drains the RX FIFO (MISO is unused)
-  ├─ MAP_SPICSDisable(GSPI_BASE)
-  └─ GPIOPinWrite(GPIOA3, 0x10, 0x10)    CS high — byte committed
-```
+<p align="center"><img src="docs/byte-on-the-wire.svg" alt="Timing diagram of one byte sent by writeCommand or writeData in Adafruit_OLED.c, GSPI master, mode 0, 100 kHz, 8-bit words, with traces for DC (PIN_45), CS (PIN_18), the hardware CS (PIN_50), SCLK (PIN_05), MOSI (PIN_07), MISO (PIN_06) and the CPU. Step 1 sets DC, high for data and low for a command, and nothing resets it afterwards. Step 2 pulls CS on PIN_18 low to select the OLED. Step 3, SPICSEnable, drives PIN_50 to its active level, high because of SPI_CS_ACTIVEHIGH, though the wiring docs mark that pin not connected. Step 4, SPIDataPut, writes the byte and the GSPI shifts 8 bits out on MOSI, sampled on rising SCLK edges. Step 5, SPIDataGet, keeps the CPU polling for 80 µs (8 bits × 10 µs) until a byte comes in; MISO is undriven and the value lands unused in ulDummy. Step 6, SPICSDisable, drops PIN_50, and step 7 raises CS on PIN_18. A table lists the seven calls with their line numbers, the same in both functions except step 1. Notes: every RGB565 pixel is two writeData calls, high byte first; every byte repeats all seven steps, so a burst never shares one CS window; three init parameters (0xF1, 0x32, 0x05) go out with DC low because they are sent with writeCommand; PIN_50 and PIN_06 are muxed for GSPI but not wired." width="100%"></p>
 
 - **The blocking `SPIDataGet` is the synchronization.** SPI always shifts in
   a byte while shifting one out; reading it back is what guarantees the
@@ -229,13 +131,13 @@ writeData(c)                                   Adafruit_OLED.c
 | Value | What it is |
 |---|---|
 | 128 × 128 | panel resolution; RGB565, 2 bytes/pixel → 32,768 bytes per full frame |
-| 100 kHz | `SPI_IF_BIT_RATE` — ≥ 2.6 s to repaint the screen, ≈ 27 ms per ball erase + draw |
+| 100 kHz | `SPI_IF_BIT_RATE` — ≥ 2.6 s to repaint the screen, ≈ 42 ms per ball erase + draw (≈522 bytes incl. GRAM-window setup) |
 | 400 kHz | I2C fast mode (`I2C_MASTER_MODE_FST`) to the accelerometer |
-| 115200 8N1 | UART0 console; the per-frame readout costs ~2 ms of blocking output |
+| 115200 8N1 | UART0 console; the per-frame readout is ~2 ms on the wire, but the TX FIFO absorbs most of it, so the loop blocks for < 1 ms |
 | 0x18 | BMA222 I2C address (written as decimal `24` in the code) |
 | 0x02–0x05 | burst-read registers — X LSB/MSB, Y LSB/MSB; only the MSBs are used, crossed |
 | 64 LSB/g | BMA222 ±2g scale implied by the `/ 64` normalization |
-| 6 | pixels/frame² of ball acceleration per g of tilt (≈ ±11 at the ±2g ceiling) |
+| 6 | pixels/frame² of ball acceleration per g of tilt (−12…+11 at the ±2g ceiling, truncated by the `int8_t` cast) |
 | 0.99 / −0.95 | friction / bounce factors — truncated into `int8_t`, so friction is really −1 px/frame |
 | 4 / (64, 64) | `BALL_RADIUS` / starting position (screen center) |
 | [4, 123] | position clamp: `BALL_RADIUS` … `SCREEN − BALL_RADIUS − 1` |
@@ -243,7 +145,7 @@ writeData(c)                                   Adafruit_OLED.c
 | 0x74 / 127 | SSD1351 remap value / mux ratio from `Adafruit_Init` |
 | 0x20004000 | image base: 76 KB code + 100 KB data regions, all in SRAM — no flash XIP |
 | 255 × 5 | glyphs × bytes/glyph in the 5×7 font table |
-| 0 | interrupts, timers, framebuffers, and heap allocations *outside* `Report()` |
+| 0 | interrupt handlers, timers, framebuffers, and heap allocations *outside* `Report()` |
 
 ---
 
@@ -276,19 +178,20 @@ not be — the system was validated the embedded way:
   to GRAM avoids it entirely and matches the SPI budget. The costs: no
   background art (erase must paint flat black), and correctness depends on
   erase and draw agreeing — which they already don't: erase hardcodes radius
-  `4` while draw uses `BALL_RADIUS`. Equal today; change the radius and the
-  ball leaves rings.
+  `4` while draw uses `BALL_RADIUS`. Equal today; grow the radius past 4 and
+  the ball leaves rings.
 - **Integer physics over floating point** — small, fast, and the truncation
   behaves like a decent game-feel decision (balls stop dead). But it means
   the tuning constants lie: 0.99 is not 1% decay, and −0.95 at low speeds is
-  mostly "stop". The `int8_t` velocity would wrap past ±127, though in a
-  128-pixel arena the ball hits a wall (about five frames of full tilt)
-  long before that.
+  mostly "stop". The `int8_t` velocity cannot hold anything outside −128…127 (and an
+  out-of-range `double` → `int8_t` conversion is undefined in C, not a wrap),
+  though in a 128-pixel arena the ball hits a wall (about five frames of full
+  tilt) long before that.
 - **Polling over interrupts** — one loop, no ISRs, no races. The price is
   that frame pacing *is* peripheral latency: a faster SPI clock would make
   the ball move faster, not smoother, because velocity is per-frame, not
   per-second.
-- **Per-byte SPI ceremony** — every byte pays two GPIO writes, a hardware-CS
+- **Per-byte SPI ceremony** — every byte pays three GPIO writes (DC, CS low, CS high), a hardware-CS
   enable/disable (on a pin wired to nothing), and a blocking dummy read.
   Batching a `WRITERAM` burst inside one CS window is the obvious unclaimed
   optimization.
@@ -304,7 +207,7 @@ not be — the system was validated the embedded way:
   claims RESET is on "GPIO28, pin 18" while the code drives RESET on PIN_08
   (GPIO17) and uses PIN_18 as CS; three init parameters (`0xF1`, `0x32`,
   `0x05`) are sent as *commands* rather than data; and the driver's clip
-  math (`HEIGHT − y − 1`) drops the final row/column of clipped shapes.
+  math (`SSD1351HEIGHT - y - 1`, and likewise for width) drops the final row/column of clipped shapes.
 - **Portability** — the CCS project hardcodes macOS SDK paths
   (`/Applications/TI/lib/cc3200sdk_1.5.0`) and links `startup_ccs.c` out of
   the SDK tree; importing on another machine means fixing

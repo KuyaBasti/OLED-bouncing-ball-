@@ -1,0 +1,178 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1288" width="1000" height="1288" role="img" aria-label="How one frame of the OLED bouncing ball happens, from main.c. Boot runs once: BoardInit, PinMuxConfig, UART0 8N1, I2C at 400 kHz, the Sliding Ball banner, SPI at 100 kHz, then Adafruit_Init, fillScreen black and a first white ball at 64, 64 with zero velocity. Then while (FOREVER), with no delay or timer: erase the old ball with fillCircle radius literal 4 in black; ReadAccData writes register 0x02 to I2C address 0x18 and burst-reads 4 bytes, keeping byte 3 as raw x and byte 1 as raw y; scale each to a = raw / 64 times 6, truncated to -12..+11; Report prints the raw bytes, not the scaled values, over UART0 to the debug console; velocity = (v + a) times 0.99 truncated into int8_t, which loses 1 toward zero whenever 1 to 100 in size; position += velocity; then x and then y are each checked against the walls: at or below 4 clamps to 4, above 123 clamps to 123, and either flips that axis's velocity by times -0.95, truncated; finally fillCircle draws the white ball at the new position and the loop starts again. Erase plus draw is 26 vertical-line writes, 522 SPI bytes, about 42 ms of shifting at 100 kHz.">
+  <style>
+    .bg{fill:#ffffff}
+    .title{fill:#1f2328;font:600 22px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .sub{fill:#59636e;font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .lbl{fill:#1f2328;font:600 14px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .note{fill:#59636e;font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .glbl{fill:#59636e;font:600 12px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;letter-spacing:.06em}
+    .elbl{fill:#59636e;font:11px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .edge{stroke:#818b98;stroke-width:1.6;fill:none}
+    .edge-dash{stroke:#818b98;stroke-width:1.6;fill:none;stroke-dasharray:6 4}
+    .arrow{fill:#818b98}
+    .group{fill:none;stroke:#d1d9e0;stroke-width:1.2;stroke-dasharray:4 4}
+    .b-blue{fill:#ddf4ff;stroke:#54aeff;stroke-width:1.5}
+    .b-green{fill:#dafbe1;stroke:#4ac26b;stroke-width:1.5}
+    .b-purple{fill:#fbefff;stroke:#c297ff;stroke-width:1.5}
+    .b-orange{fill:#fff1e5;stroke:#fb8f44;stroke-width:1.5}
+    .b-gray{fill:#f6f8fa;stroke:#d1d9e0;stroke-width:1.5}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .dot{fill:#59636e}
+    @media (prefers-color-scheme: dark){
+      .bg{fill:#0d1117}
+      .title,.lbl{fill:#e6edf3}
+      .sub,.note,.glbl,.elbl{fill:#9198a1}
+      .edge,.edge-dash{stroke:#9198a1}
+      .arrow{fill:#9198a1}
+      .group{stroke:#3d444d}
+      .b-blue{fill:#0c2d6b;stroke:#4493f8}
+      .b-green{fill:#0f3b1e;stroke:#3fb950}
+      .b-purple{fill:#2e1a4f;stroke:#ab7df8}
+      .b-orange{fill:#3d1f0a;stroke:#f0883e}
+      .b-gray{fill:#151b23;stroke:#3d444d}
+      .dot{fill:#9198a1}
+    }
+  </style>
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="arrow" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1000" height="1288" rx="12"/>
+  <text class="title" x="32" y="48">OLED Bouncing Ball — how a frame happens</text>
+  <text class="sub" x="32" y="74">main.c boots once, then every while (FOREVER) pass erases, reads the tilt, prints it, moves, bounces and redraws.</text>
+
+  <!-- ===== boot: runs once ===== -->
+  <rect class="b-blue" x="120" y="96" width="600" height="72" rx="10"/>
+  <text class="lbl" x="420" y="119" text-anchor="middle">boot — main() bring-up, in call order</text>
+  <text class="note" x="420" y="137" text-anchor="middle">BoardInit · PinMuxConfig · UART0 115200* 8N1 (InitTerm) · I2C 400 kHz (FST)</text>
+  <text class="note" x="420" y="154" text-anchor="middle">“Sliding Ball” banner on UART0 · SPI 100 kHz master, mode 0, 8-bit words</text>
+  <path class="edge" d="M420,168 V186" marker-end="url(#ah)"/>
+  <rect class="b-green" x="120" y="190" width="600" height="72" rx="10"/>
+  <text class="lbl" x="420" y="213" text-anchor="middle">first screen + ball state</text>
+  <text class="note" x="420" y="231" text-anchor="middle"><tspan class="mono">Adafruit_Init()</tspan> · <tspan class="mono">fillScreen(BLACK)</tspan> · <tspan class="mono">fillCircle(64, 64, 4, WHITE)</tspan></text>
+  <text class="note" x="420" y="248" text-anchor="middle">pos = (64, 64) as int · vel = (0, 0) as int8_t · BALL_RADIUS = 4 · SCREEN = 128</text>
+
+  <!-- ===== the frame loop ===== -->
+  <rect class="group" x="48" y="288" width="704" height="944" rx="12"/>
+  <text class="glbl" x="64" y="310">FRAME LOOP — while (FOREVER)</text>
+  <path class="edge" d="M420,262 V320" marker-end="url(#ah)"/>
+
+  <!-- erase -->
+  <rect class="b-green" x="200" y="324" width="440" height="72" rx="10"/>
+  <text class="lbl" x="420" y="347" text-anchor="middle">erase the old ball</text>
+  <text class="note mono" x="420" y="365" text-anchor="middle">fillCircle(old x, old y, 4, BLACK)</text>
+  <text class="note" x="420" y="382" text-anchor="middle">the radius is a literal 4, not BALL_RADIUS</text>
+  <path class="edge" d="M420,396 V416" marker-end="url(#ah)"/>
+
+  <!-- read -->
+  <rect class="b-orange" x="200" y="420" width="440" height="72" rx="10"/>
+  <text class="lbl" x="420" y="443" text-anchor="middle">ReadAccData — I2C address 0x18 (24 in code)</text>
+  <text class="note" x="420" y="461" text-anchor="middle">write reg 0x02 (no stop) · burst-read 4 bytes = regs 0x02–0x05</text>
+  <text class="note" x="420" y="478" text-anchor="middle">keeps buf[3] (reg 0x05) → raw x · buf[1] (reg 0x03) → raw y</text>
+  <path class="edge" d="M420,492 V512" marker-end="url(#ah)"/>
+
+  <!-- scale -->
+  <rect class="b-blue" x="200" y="516" width="440" height="72" rx="10"/>
+  <text class="lbl" x="420" y="539" text-anchor="middle">scale the tilt to px/frame²</text>
+  <text class="note" x="420" y="557" text-anchor="middle"><tspan class="mono">a = (int8_t)((double)raw / 64 * 6)</tspan>, per axis</text>
+  <text class="note" x="420" y="574" text-anchor="middle">raw −128…127 (±2g per the docs) → a = −12…+11, truncated</text>
+  <path class="edge" d="M420,588 V608" marker-end="url(#ah)"/>
+
+  <!-- print -->
+  <rect class="b-purple" x="200" y="612" width="440" height="72" rx="10"/>
+  <text class="lbl" x="420" y="635" text-anchor="middle">Report the raw readings</text>
+  <text class="note" x="420" y="653" text-anchor="middle"><tspan class="mono">"X Acc: %d, Y Acc: %d"</tspan> — the raw bytes, not the scaled a</text>
+  <text class="note" x="420" y="670" text-anchor="middle">a plain call in the loop: malloc + vsnprintf, then UART0 char by char</text>
+  <path class="edge-dash" d="M640,648 H776" marker-end="url(#ah)"/>
+  <text class="elbl" x="694" y="640" text-anchor="middle">every pass</text>
+  <rect class="b-purple" x="780" y="616" width="180" height="64" rx="10"/>
+  <text class="lbl" x="870" y="641" text-anchor="middle">debug console</text>
+  <text class="note" x="870" y="660" text-anchor="middle">UART0 · 115200* 8N1</text>
+  <path class="edge" d="M420,684 V704" marker-end="url(#ah)"/>
+
+  <!-- velocity -->
+  <rect class="b-blue" x="200" y="708" width="440" height="72" rx="10"/>
+  <text class="lbl" x="420" y="731" text-anchor="middle">update velocity (x, then y)</text>
+  <text class="note" x="420" y="749" text-anchor="middle"><tspan class="mono">v = (v + a) * 0.99</tspan> — computed in double</text>
+  <text class="note" x="420" y="766" text-anchor="middle">stored as int8_t: truncation drops 1 toward 0 when 1 ≤ |v + a| ≤ 100</text>
+  <path class="edge" d="M420,780 V800" marker-end="url(#ah)"/>
+
+  <!-- position -->
+  <rect class="b-blue" x="200" y="804" width="440" height="56" rx="10"/>
+  <text class="lbl" x="420" y="827" text-anchor="middle">update position (x, then y)</text>
+  <text class="note" x="420" y="845" text-anchor="middle"><tspan class="mono">pos += v</tspan> — pos is an int</text>
+  <path class="edge" d="M420,860 V880" marker-end="url(#ah)"/>
+
+  <!-- x walls -->
+  <polygon class="b-gray" points="420,884 510,914 420,944 330,914"/>
+  <text class="lbl" x="420" y="919" text-anchor="middle">x vs. walls</text>
+  <path class="edge" d="M330,914 H276" marker-end="url(#ah)"/>
+  <text class="elbl" x="303" y="906" text-anchor="middle">x ≤ 4</text>
+  <rect class="b-blue" x="104" y="886" width="168" height="56" rx="10"/>
+  <text class="lbl" x="188" y="909" text-anchor="middle">clamp x = 4</text>
+  <text class="note" x="188" y="927" text-anchor="middle">vx ×= −0.95, truncated</text>
+  <path class="edge" d="M510,914 H564" marker-end="url(#ah)"/>
+  <text class="elbl" x="537" y="906" text-anchor="middle">x &gt; 123</text>
+  <rect class="b-blue" x="568" y="886" width="168" height="56" rx="10"/>
+  <text class="lbl" x="652" y="909" text-anchor="middle">clamp x = 123</text>
+  <text class="note" x="652" y="927" text-anchor="middle">vx ×= −0.95, truncated</text>
+  <path class="edge" d="M420,944 V1004" marker-end="url(#ah)"/>
+  <text class="elbl" x="430" y="962">5 ≤ x ≤ 123</text>
+  <path class="edge" d="M188,942 V978 H420"/>
+  <path class="edge" d="M652,942 V978 H420"/>
+  <circle class="dot" cx="420" cy="978" r="3.5"/>
+
+  <!-- y walls -->
+  <polygon class="b-gray" points="420,1008 510,1038 420,1068 330,1038"/>
+  <text class="lbl" x="420" y="1043" text-anchor="middle">y vs. walls</text>
+  <path class="edge" d="M330,1038 H276" marker-end="url(#ah)"/>
+  <text class="elbl" x="303" y="1030" text-anchor="middle">y ≤ 4</text>
+  <rect class="b-blue" x="104" y="1010" width="168" height="56" rx="10"/>
+  <text class="lbl" x="188" y="1033" text-anchor="middle">clamp y = 4</text>
+  <text class="note" x="188" y="1051" text-anchor="middle">vy ×= −0.95, truncated</text>
+  <path class="edge" d="M510,1038 H564" marker-end="url(#ah)"/>
+  <text class="elbl" x="537" y="1030" text-anchor="middle">y &gt; 123</text>
+  <rect class="b-blue" x="568" y="1010" width="168" height="56" rx="10"/>
+  <text class="lbl" x="652" y="1033" text-anchor="middle">clamp y = 123</text>
+  <text class="note" x="652" y="1051" text-anchor="middle">vy ×= −0.95, truncated</text>
+  <path class="edge" d="M420,1068 V1128" marker-end="url(#ah)"/>
+  <text class="elbl" x="430" y="1086">5 ≤ y ≤ 123</text>
+  <path class="edge" d="M188,1066 V1102 H420"/>
+  <path class="edge" d="M652,1066 V1102 H420"/>
+  <circle class="dot" cx="420" cy="1102" r="3.5"/>
+
+  <!-- draw -->
+  <rect class="b-green" x="200" y="1132" width="440" height="72" rx="10"/>
+  <text class="lbl" x="420" y="1155" text-anchor="middle">draw the new ball</text>
+  <text class="note mono" x="420" y="1173" text-anchor="middle">fillCircle(x, y, BALL_RADIUS, WHITE)</text>
+  <text class="note" x="420" y="1190" text-anchor="middle">erase + draw: 26 line writes = 522 SPI bytes, ≈ 42 ms at 100 kHz</text>
+
+  <!-- next pass -->
+  <path class="edge" d="M200,1168 H72 V360 H196" marker-end="url(#ah)"/>
+  <text class="elbl" x="82" y="1146">next pass at once —</text>
+  <text class="elbl" x="82" y="1160">no delay, no timer</text>
+
+  <!-- ===== legend ===== -->
+  <text class="glbl" x="780" y="744">LEGEND</text>
+  <rect class="b-blue" x="780" y="758" width="26" height="14" rx="4"/>
+  <text class="note" x="818" y="769">main.c on the CPU</text>
+  <rect class="b-green" x="780" y="782" width="26" height="14" rx="4"/>
+  <text class="note" x="818" y="793">OLED over SPI</text>
+  <rect class="b-orange" x="780" y="806" width="26" height="14" rx="4"/>
+  <text class="note" x="818" y="817">accelerometer over I2C</text>
+  <rect class="b-purple" x="780" y="830" width="26" height="14" rx="4"/>
+  <text class="note" x="818" y="841">UART0 console</text>
+  <polygon class="b-gray" points="793,854 807,862 793,870 779,862"/>
+  <text class="note" x="818" y="866">decision</text>
+  <path class="edge" d="M780,886 H806" marker-end="url(#ah)"/>
+  <text class="note" x="818" y="890">control flow</text>
+  <path class="edge-dash" d="M780,910 H806" marker-end="url(#ah)"/>
+  <text class="note" x="818" y="914">bytes to the console</text>
+  <circle class="dot" cx="793" cy="934" r="3.5"/>
+  <text class="note" x="818" y="938">paths rejoin</text>
+
+  <!-- footnote -->
+  <text class="note" x="48" y="1262">* The baud rate is UART_BAUD_RATE from the SDK header uart_if.h, which is not in this repo; 115200 is the value the repo’s docs give.</text>
+</svg>

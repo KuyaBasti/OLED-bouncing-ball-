@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 636" width="1000" height="636" role="img" aria-label="OLED Bouncing Ball system overview: firmware on a CC3200 Cortex-M4 runs one polled loop in main.c. At boot main.c routes the pins through pin_mux_config.c, brings up SPI, I2C and UART, and initialises and clears the SSD1351 through the Adafruit_OLED.c driver. Each frame it reads X and Y tilt bytes from the on-board BMA222 accelerometer through i2c_if.c over 400 kHz I2C at address 0x18 (burst read of registers 0x02 to 0x05), prints the readings through uart_if.c over UART0 at 115200 8N1 to a PC serial terminal, applies friction and wall bounces, and erases and redraws a radius-4 ball through Adafruit_GFX.c, which turns the circle into vertical lines for the Adafruit_OLED.c driver. The driver talks to an external 128×128 RGB565 SSD1351 OLED over 100 kHz mode-0 SPI plus GPIO DC, CS and RST lines. The oled_test.c demo suite calls both graphics layers but is compiled and never called.">
+  <style>
+    .bg{fill:#ffffff}
+    .title{fill:#1f2328;font:600 22px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .sub{fill:#59636e;font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .lbl{fill:#1f2328;font:600 14px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .note{fill:#59636e;font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .glbl{fill:#59636e;font:600 12px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;letter-spacing:.06em}
+    .elbl{fill:#59636e;font:11px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .edge{stroke:#818b98;stroke-width:1.6;fill:none}
+    .edge-dash{stroke:#818b98;stroke-width:1.6;fill:none;stroke-dasharray:6 4}
+    .arrow{fill:#818b98}
+    .group{fill:none;stroke:#d1d9e0;stroke-width:1.2;stroke-dasharray:4 4}
+    .b-blue{fill:#ddf4ff;stroke:#54aeff;stroke-width:1.5}
+    .b-green{fill:#dafbe1;stroke:#4ac26b;stroke-width:1.5}
+    .b-purple{fill:#fbefff;stroke:#c297ff;stroke-width:1.5}
+    .b-orange{fill:#fff1e5;stroke:#fb8f44;stroke-width:1.5}
+    .b-gray{fill:#f6f8fa;stroke:#d1d9e0;stroke-width:1.5}
+    .b-planned{fill:none;stroke:#818b98;stroke-width:1.4;stroke-dasharray:5 4}
+    @media (prefers-color-scheme: dark){
+      .bg{fill:#0d1117}
+      .title,.lbl{fill:#e6edf3}
+      .sub,.note,.glbl,.elbl{fill:#9198a1}
+      .edge,.edge-dash{stroke:#9198a1}
+      .arrow{fill:#9198a1}
+      .group{stroke:#3d444d}
+      .b-blue{fill:#0c2d6b;stroke:#4493f8}
+      .b-green{fill:#0f3b1e;stroke:#3fb950}
+      .b-purple{fill:#2e1a4f;stroke:#ab7df8}
+      .b-orange{fill:#3d1f0a;stroke:#f0883e}
+      .b-gray{fill:#151b23;stroke:#3d444d}
+      .b-planned{stroke:#9198a1}
+    }
+  </style>
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="arrow" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+  <rect class="bg" width="1000" height="636" rx="12"/>
+  <text class="title" x="32" y="48">OLED Bouncing Ball — system overview</text>
+  <text class="sub" x="32" y="74">One polled loop reads tilt over I2C, applies friction and bounces, and redraws a radius-4 ball over SPI.</text>
+
+  <!-- ===== Firmware on the CC3200 ===== -->
+  <rect class="group" x="24" y="96" width="952" height="378" rx="12"/>
+  <text class="glbl" x="40" y="118">CC3200 FIRMWARE · CORTEX-M4</text>
+
+  <!-- row A: boot pin config and the loop -->
+  <rect class="b-gray" x="40" y="134" width="200" height="64" rx="10"/>
+  <text class="lbl" x="140" y="161" text-anchor="middle">pin_mux_config.c</text>
+  <text class="note" x="140" y="181" text-anchor="middle">boot-time pin routing</text>
+
+  <rect class="b-green" x="280" y="134" width="420" height="64" rx="10"/>
+  <text class="lbl" x="490" y="161" text-anchor="middle">main.c — bus bring-up + frame loop</text>
+  <text class="note" x="490" y="181" text-anchor="middle">erase → read tilt → move → draw</text>
+
+  <!-- row B: drivers -->
+  <rect class="b-green" x="40" y="270" width="200" height="64" rx="10"/>
+  <text class="lbl" x="140" y="297" text-anchor="middle">uart_if.c</text>
+  <text class="note" x="140" y="317" text-anchor="middle">Report() console output</text>
+
+  <rect class="b-green" x="280" y="270" width="200" height="64" rx="10"/>
+  <text class="lbl" x="380" y="297" text-anchor="middle">i2c_if.c</text>
+  <text class="note" x="380" y="317" text-anchor="middle">polled I2C master</text>
+
+  <rect class="b-green" x="520" y="270" width="200" height="64" rx="10"/>
+  <text class="lbl" x="620" y="297" text-anchor="middle">Adafruit_GFX.c</text>
+  <text class="note" x="620" y="317" text-anchor="middle">fillCircle → vertical lines</text>
+
+  <rect class="b-green" x="760" y="270" width="200" height="64" rx="10"/>
+  <text class="lbl" x="860" y="297" text-anchor="middle">Adafruit_OLED.c</text>
+  <text class="note" x="860" y="317" text-anchor="middle">SSD1351 init + SPI writes</text>
+
+  <!-- row C: the unused demos, below the graphics pair -->
+  <rect class="b-planned" x="580" y="390" width="220" height="64" rx="10"/>
+  <text class="lbl" x="690" y="417" text-anchor="middle">oled_test.c</text>
+  <text class="note" x="690" y="437" text-anchor="middle">demo suite, never called</text>
+
+  <!-- firmware edges -->
+  <path class="edge" d="M280,166 H244" marker-end="url(#ah)"/>
+  <path class="edge" d="M300,198 V234 H140 V266" marker-end="url(#ah)"/>
+  <text class="elbl" x="220" y="226" text-anchor="middle">X/Y readout, every frame</text>
+  <path class="edge" d="M380,270 V202" marker-end="url(#ah)"/>
+  <text class="elbl" x="388" y="240">X, Y tilt bytes</text>
+  <path class="edge" d="M620,198 V266" marker-end="url(#ah)"/>
+  <text class="elbl" x="612" y="240" text-anchor="end">erase + draw, r = 4</text>
+  <path class="edge" d="M700,166 H860 V266" marker-end="url(#ah)"/>
+  <text class="elbl" x="780" y="158" text-anchor="middle">init + clear, at boot</text>
+  <path class="edge" d="M720,302 H756" marker-end="url(#ah)"/>
+  <path class="edge-dash" d="M620,390 V338" marker-end="url(#ah)"/>
+  <path class="edge-dash" d="M780,390 V338" marker-end="url(#ah)"/>
+
+  <!-- ===== Hardware ===== -->
+  <rect class="b-orange" x="40" y="540" width="200" height="64" rx="10"/>
+  <text class="lbl" x="140" y="567" text-anchor="middle">Serial console</text>
+  <text class="note" x="140" y="587" text-anchor="middle">PC terminal over USB</text>
+
+  <rect class="b-orange" x="280" y="540" width="200" height="64" rx="10"/>
+  <text class="lbl" x="380" y="567" text-anchor="middle">Accelerometer</text>
+  <text class="note" x="380" y="587" text-anchor="middle">on-board BMA222</text>
+
+  <rect class="b-orange" x="760" y="540" width="200" height="64" rx="10"/>
+  <text class="lbl" x="860" y="567" text-anchor="middle">SSD1351 OLED</text>
+  <text class="note" x="860" y="587" text-anchor="middle">128×128 RGB565, external</text>
+
+  <path class="edge" d="M140,334 V536" marker-end="url(#ah)"/>
+  <text class="elbl" x="148" y="511">UART0 · 115200 8N1</text>
+
+  <path class="edge" d="M380,540 V338" marker-end="url(#ah)"/>
+  <text class="elbl" x="388" y="502">I2C 400 kHz · addr 0x18</text>
+  <text class="elbl" x="388" y="516">burst-read regs 0x02–0x05</text>
+
+  <path class="edge" d="M860,334 V536" marker-end="url(#ah)"/>
+  <text class="elbl" x="852" y="502" text-anchor="end">SPI 100 kHz, mode 0</text>
+  <text class="elbl" x="852" y="516" text-anchor="end">+ GPIO DC · CS · RST</text>
+
+  <!-- legend -->
+  <rect class="b-green" x="548" y="546" width="14" height="10" rx="2"/>
+  <text class="note" x="570" y="555">firmware source</text>
+  <rect class="b-gray" x="548" y="563" width="14" height="10" rx="2"/>
+  <text class="note" x="570" y="572">generated pin config</text>
+  <rect class="b-orange" x="548" y="580" width="14" height="10" rx="2"/>
+  <text class="note" x="570" y="589">hardware</text>
+  <rect class="b-planned" x="548" y="597" width="14" height="10" rx="2"/>
+  <text class="note" x="570" y="606">compiled, never called</text>
+</svg>
