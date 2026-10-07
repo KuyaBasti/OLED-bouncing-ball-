@@ -1,0 +1,209 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1060" width="1000" height="1060" role="img" aria-label="OLED Bouncing Ball, one byte on the wire: a timing diagram of writeCommand and writeData in Adafruit_OLED.c. Step 1 sets DC on PIN_45, low for a command and high for data, and nothing resets it afterwards. Step 2 pulls CS on PIN_18 low to select the OLED. Step 3, SPICSEnable, drives the GSPI hardware chip select on PIN_50 high, because the SPI is configured SPI_CS_ACTIVEHIGH, but the wiring docs mark that pin as not connected; the OLED's CS is PIN_18. Step 4, SPIDataPut, writes the byte to the transmit register and the GSPI shifts 8 bits out on MOSI with 8 SCLK pulses in mode 0. Step 5, SPIDataGet, keeps the CPU polling for about 80 microseconds, 8 bits at 100 kHz, until the received byte is in; MISO on PIN_06 is also marked not connected, and the value read lands in ulDummy unused. Step 6, SPICSDisable, drops PIN_50, and step 7 raises CS on PIN_18. Every pixel is two such bytes and every byte repeats all seven steps.">
+  <style>
+    .bg{fill:#ffffff}
+    .title{fill:#1f2328;font:600 22px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .sub{fill:#59636e;font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .lbl{fill:#1f2328;font:600 14px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .note{fill:#59636e;font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .glbl{fill:#59636e;font:600 12px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;letter-spacing:.06em}
+    .elbl{fill:#59636e;font:11px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .edge{stroke:#818b98;stroke-width:1.6;fill:none}
+    .edge-dash{stroke:#818b98;stroke-width:1.6;fill:none;stroke-dasharray:6 4}
+    .arrow{fill:#818b98}
+    .group{fill:none;stroke:#d1d9e0;stroke-width:1.2;stroke-dasharray:4 4}
+    .b-blue{fill:#ddf4ff;stroke:#54aeff;stroke-width:1.5}
+    .b-green{fill:#dafbe1;stroke:#4ac26b;stroke-width:1.5}
+    .b-purple{fill:#fbefff;stroke:#c297ff;stroke-width:1.5}
+    .b-orange{fill:#fff1e5;stroke:#fb8f44;stroke-width:1.5}
+    .b-gray{fill:#f6f8fa;stroke:#d1d9e0;stroke-width:1.5}
+    .b-red{fill:#ffebe9;stroke:#ff8182;stroke-width:1.5}
+    .b-planned{fill:none;stroke:#818b98;stroke-width:1.4;stroke-dasharray:5 4}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .wire{stroke:#59636e;stroke-width:1.4;fill:none}
+    .dot{fill:#59636e}
+    @media (prefers-color-scheme: dark){
+      .bg{fill:#0d1117}
+      .title,.lbl{fill:#e6edf3}
+      .sub,.note,.glbl,.elbl{fill:#9198a1}
+      .edge,.edge-dash{stroke:#9198a1}
+      .arrow{fill:#9198a1}
+      .group{stroke:#3d444d}
+      .b-blue{fill:#0c2d6b;stroke:#4493f8}
+      .b-green{fill:#0f3b1e;stroke:#3fb950}
+      .b-purple{fill:#2e1a4f;stroke:#ab7df8}
+      .b-orange{fill:#3d1f0a;stroke:#f0883e}
+      .b-gray{fill:#151b23;stroke:#3d444d}
+      .b-red{fill:#3c1618;stroke:#f85149}
+      .b-planned{stroke:#9198a1}
+      .wire{stroke:#9198a1}
+      .dot{fill:#9198a1}
+    }
+  </style>
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="arrow" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+  <rect class="bg" width="1000" height="1060" rx="12"/>
+  <text class="title" x="32" y="48">OLED Bouncing Ball — one byte on the wire</text>
+  <text class="sub" x="32" y="74">Each byte, command or data: set DC, pull CS low, one blocking 8-bit SPI transfer, raise CS again.</text>
+  <!-- legend -->
+  <rect class="b-orange" x="32" y="90" width="22" height="12" rx="3"/>
+  <text class="elbl" x="60" y="100">GPIO written by the code</text>
+  <rect class="b-green" x="210" y="90" width="22" height="12" rx="3"/>
+  <text class="elbl" x="238" y="100">pin driven by the GSPI hardware</text>
+  <rect class="b-blue" x="424" y="90" width="22" height="12" rx="3"/>
+  <text class="elbl" x="452" y="100">CPU running a call</text>
+  <rect class="b-red" x="567" y="90" width="22" height="12" rx="3"/>
+  <text class="elbl" x="595" y="100">CPU blocked, polling</text>
+  <path class="b-planned" d="M722,96 H744"/>
+  <text class="elbl" x="750" y="100">muxed for GSPI, n.c. per the wiring docs</text>
+
+  <!-- ===== timing ===== -->
+  <rect class="group" x="24" y="118" width="952" height="492" rx="12"/>
+  <text class="glbl" x="40" y="142">ONE BYTE, IN TIME — GSPI MASTER · MODE 0 · 100 KHZ · 8-BIT WORDS</text>
+  <text class="elbl mono" x="960" y="142" text-anchor="end">main.c 217–223</text>
+  <!-- step badges (numbers match THE CODE below) -->
+  <circle class="b-blue" cx="330" cy="172" r="11"/>
+  <text class="lbl" x="330" y="177" text-anchor="middle">1</text>
+  <circle class="b-blue" cx="390" cy="172" r="11"/>
+  <text class="lbl" x="390" y="177" text-anchor="middle">2</text>
+  <circle class="b-blue" cx="450" cy="172" r="11"/>
+  <text class="lbl" x="450" y="177" text-anchor="middle">3</text>
+  <circle class="b-blue" cx="510" cy="172" r="11"/>
+  <text class="lbl" x="510" y="177" text-anchor="middle">4</text>
+  <circle class="b-blue" cx="836" cy="172" r="11"/>
+  <text class="lbl" x="836" y="177" text-anchor="middle">6</text>
+  <circle class="b-blue" cx="896" cy="172" r="11"/>
+  <text class="lbl" x="896" y="177" text-anchor="middle">7</text>
+  <path class="wire" d="M530,166 V178 M530,172 H647 M669,172 H786 M786,166 V178"/>
+  <circle class="b-blue" cx="658" cy="172" r="11"/>
+  <text class="lbl" x="658" y="177" text-anchor="middle">5</text>
+  <!-- guides -->
+  <line class="group" x1="330" y1="186" x2="330" y2="494"/>
+  <line class="group" x1="390" y1="186" x2="390" y2="494"/>
+  <line class="group" x1="450" y1="186" x2="450" y2="494"/>
+  <line class="group" x1="510" y1="186" x2="510" y2="494"/>
+  <line class="group" x1="836" y1="186" x2="836" y2="494"/>
+  <line class="group" x1="896" y1="186" x2="896" y2="494"/>
+  <!-- row labels -->
+  <rect class="b-orange" x="40" y="188" width="184" height="44" rx="8"/>
+  <text class="lbl" x="52" y="207">DC</text>
+  <text class="note" x="52" y="224">PIN_45 · 1 data, 0 command</text>
+  <rect class="b-orange" x="40" y="240" width="184" height="44" rx="8"/>
+  <text class="lbl" x="52" y="259">CS</text>
+  <text class="note" x="52" y="276">PIN_18 · the OLED’s CS</text>
+  <rect class="b-planned" x="40" y="292" width="184" height="44" rx="8"/>
+  <text class="lbl" x="52" y="311">hardware CS</text>
+  <text class="note" x="52" y="328">PIN_50 · GSPI_CS</text>
+  <rect class="b-green" x="40" y="344" width="184" height="44" rx="8"/>
+  <text class="lbl" x="52" y="363">SCLK</text>
+  <text class="note" x="52" y="380">PIN_05 · mode 0, idles low</text>
+  <rect class="b-green" x="40" y="396" width="184" height="44" rx="8"/>
+  <text class="lbl" x="52" y="415">MOSI</text>
+  <text class="note" x="52" y="432">PIN_07 · data out</text>
+  <rect class="b-planned" x="40" y="448" width="184" height="44" rx="8"/>
+  <text class="lbl" x="52" y="467">MISO</text>
+  <text class="note" x="52" y="484">PIN_06 · GSPI_MISO</text>
+  <rect class="b-blue" x="40" y="506" width="184" height="44" rx="8"/>
+  <text class="lbl" x="52" y="525">CPU</text>
+  <text class="note" x="52" y="542">Adafruit_OLED.c</text>
+  <!-- DC: previous level, set at step 1, then held -->
+  <path class="wire" d="M236,199 H324 L336,221 H968 M236,221 H324 L336,199 H968"/>
+  <text class="elbl" x="280" y="214" text-anchor="middle">previous byte</text>
+  <text class="elbl mono" x="658" y="214" text-anchor="middle">writeData 1 · writeCommand 0</text>
+  <text class="elbl" x="932" y="214" text-anchor="middle">held</text>
+  <!-- CS on PIN_18 -->
+  <path class="wire" d="M236,251 H388 L392,273 H894 L898,251 H968"/>
+  <text class="elbl" x="658" y="266" text-anchor="middle">low = OLED selected</text>
+  <!-- hardware CS on PIN_50 (n.c.) -->
+  <path class="b-planned" d="M236,325 H448 L452,303 H834 L838,325 H968"/>
+  <text class="elbl" x="658" y="318" text-anchor="middle">high = active (SPI_CS_ACTIVEHIGH)</text>
+  <!-- SCLK -->
+  <path class="wire" d="M236,377 H546 V355 H562 V377 H578 V355 H594 V377 H610 V355 H626 V377 H642 V355 H658 V377 H674 V355 H690 V377 H706 V355 H722 V377 H738 V355 H754 V377 H770 V355 H786 V377 H968"/>
+  <text class="elbl" x="658" y="394" text-anchor="middle">8 bits of the byte, sampled on rising SCLK edges</text>
+  <!-- MOSI -->
+  <path class="wire" d="M236,407 H526 L530,418 M236,429 H526 L530,418 M786,418 L790,407 H968 M786,418 L790,429 H968"/>
+  <path class="b-green" d="M530,418 L534,407 H558 L562,418 L558,429 H534 Z"/>
+  <path class="b-green" d="M562,418 L566,407 H590 L594,418 L590,429 H566 Z"/>
+  <path class="b-green" d="M594,418 L598,407 H622 L626,418 L622,429 H598 Z"/>
+  <path class="b-green" d="M626,418 L630,407 H654 L658,418 L654,429 H630 Z"/>
+  <path class="b-green" d="M658,418 L662,407 H686 L690,418 L686,429 H662 Z"/>
+  <path class="b-green" d="M690,418 L694,407 H718 L722,418 L718,429 H694 Z"/>
+  <path class="b-green" d="M722,418 L726,407 H750 L754,418 L750,429 H726 Z"/>
+  <path class="b-green" d="M754,418 L758,407 H782 L786,418 L782,429 H758 Z"/>
+  <!-- MISO: undriven -->
+  <path class="b-planned" d="M236,470 H968"/>
+  <text class="elbl" x="658" y="462" text-anchor="middle">undriven; the 8 bits read land in ulDummy</text>
+  <!-- CPU -->
+  <rect class="b-gray" x="236" y="513" width="74" height="30" rx="6"/>
+  <text class="note" x="273" y="532" text-anchor="middle">caller</text>
+  <rect class="b-blue" x="316" y="513" width="208" height="30" rx="6"/>
+  <text class="note" x="420" y="532" text-anchor="middle">steps 1–4</text>
+  <rect class="b-red" x="530" y="513" width="256" height="30" rx="6"/>
+  <text class="note" x="658" y="532" text-anchor="middle">step 5: blocked in SPIDataGet</text>
+  <rect class="b-blue" x="792" y="513" width="108" height="30" rx="6"/>
+  <text class="note" x="846" y="532" text-anchor="middle">steps 6–7</text>
+  <rect class="b-gray" x="906" y="513" width="62" height="30" rx="6"/>
+  <text class="note" x="937" y="532" text-anchor="middle">caller</text>
+  <!-- shift duration -->
+  <line class="edge" x1="531" y1="566" x2="785" y2="566" marker-start="url(#ah)" marker-end="url(#ah)"/>
+  <text class="note" x="658" y="588" text-anchor="middle">80 µs = 8 bits × 10 µs at SPI_IF_BIT_RATE 100000</text>
+  <text class="elbl" x="236" y="570">time →</text>
+  <text class="elbl" x="236" y="588">widths not to scale</text>
+
+  <!-- ===== the code ===== -->
+  <rect class="group" x="24" y="630" width="952" height="314" rx="12"/>
+  <text class="glbl" x="40" y="654">THE CODE — SEVEN CALLS, THE SAME IN BOTH FUNCTIONS EXCEPT STEP 1</text>
+  <text class="elbl mono" x="960" y="654" text-anchor="end">Adafruit_OLED.c 27–58</text>
+  <text class="elbl" x="56" y="682" text-anchor="middle">step</text>
+  <text class="elbl" x="80" y="682">call</text>
+  <text class="elbl" x="372" y="682">line</text>
+  <text class="elbl" x="452" y="682">what it does</text>
+  <line class="group" x1="40" y1="692" x2="960" y2="692"/>
+  <circle class="b-blue" cx="56" cy="722" r="11"/>
+  <text class="lbl" x="56" y="727" text-anchor="middle">1</text>
+  <text class="note mono" x="80" y="716">GPIOPinWrite(GPIOA3_BASE, 0x80, 0)</text>
+  <text class="note mono" x="372" y="716">33 (cmd)</text>
+  <text class="note" x="452" y="716">writeCommand: DC low on PIN_45, so the byte is a command</text>
+  <text class="note mono" x="80" y="736">GPIOPinWrite(GPIOA3_BASE, 0x80, 0x80)</text>
+  <text class="note mono" x="372" y="736">50 (data)</text>
+  <text class="note" x="452" y="736">writeData: DC high, so the byte is data; DC is never reset afterwards</text>
+  <circle class="b-blue" cx="56" cy="760" r="11"/>
+  <text class="lbl" x="56" y="765" text-anchor="middle">2</text>
+  <text class="note mono" x="80" y="764">GPIOPinWrite(GPIOA3_BASE, 0x10, 0)</text>
+  <text class="note mono" x="372" y="764">34 / 51</text>
+  <text class="note" x="452" y="764">CS low on PIN_18: the OLED is selected</text>
+  <circle class="b-blue" cx="56" cy="788" r="11"/>
+  <text class="lbl" x="56" y="793" text-anchor="middle">3</text>
+  <text class="note mono" x="80" y="792">MAP_SPICSEnable(GSPI_BASE)</text>
+  <text class="note mono" x="372" y="792">35 / 52</text>
+  <text class="note" x="452" y="792">sets FORCE: PIN_50 goes active, which is high (SPI_CS_ACTIVEHIGH)</text>
+  <circle class="b-blue" cx="56" cy="816" r="11"/>
+  <text class="lbl" x="56" y="821" text-anchor="middle">4</text>
+  <text class="note mono" x="80" y="820">MAP_SPIDataPut(GSPI_BASE, c)</text>
+  <text class="note mono" x="372" y="820">36 / 53</text>
+  <text class="note" x="452" y="820">writes c to TX0, already empty so no wait; the hardware starts shifting</text>
+  <circle class="b-blue" cx="56" cy="844" r="11"/>
+  <text class="lbl" x="56" y="849" text-anchor="middle">5</text>
+  <text class="note mono" x="80" y="848">MAP_SPIDataGet(GSPI_BASE, &amp;ulDummy)</text>
+  <text class="note mono" x="372" y="848">38 / 55</text>
+  <text class="note" x="452" y="848">spins on RXS until a byte comes in, i.e. the shift is done; value unused</text>
+  <circle class="b-blue" cx="56" cy="872" r="11"/>
+  <text class="lbl" x="56" y="877" text-anchor="middle">6</text>
+  <text class="note mono" x="80" y="876">MAP_SPICSDisable(GSPI_BASE)</text>
+  <text class="note mono" x="372" y="876">39 / 56</text>
+  <text class="note" x="452" y="876">clears FORCE: PIN_50 drops back to inactive (low)</text>
+  <circle class="b-blue" cx="56" cy="900" r="11"/>
+  <text class="lbl" x="56" y="905" text-anchor="middle">7</text>
+  <text class="note mono" x="80" y="904">GPIOPinWrite(GPIOA3_BASE, 0x10, 0x10)</text>
+  <text class="note mono" x="372" y="904">40 / 57</text>
+  <text class="note" x="452" y="904">CS high on PIN_18: the OLED is deselected; the next byte starts at step 1</text>
+  <text class="elbl" x="40" y="930">FORCE, TX0, RXS and RX0 are McSPI register names used by driverlib spi.c in the CC3200 SDK 1.5.0, which the build links from outside this repo.</text>
+
+  <!-- notes -->
+  <text class="note" x="32" y="972">Every RGB565 pixel is two writeData calls, high byte first (Adafruit_OLED.c 222–223, 301–302); every command byte is one writeCommand.</text>
+  <text class="note" x="32" y="990">Fills call writeData once per byte (221–224), so every byte repeats all seven steps: a burst never shares one CS window.</text>
+  <text class="note" x="32" y="1008">Three init parameters (0xF1, 0x32, 0x05) are sent with writeCommand, so they too go out with DC low (91, 128, 131).</text>
+  <text class="note" x="32" y="1026">PIN_50 and PIN_06 are muxed for GSPI in pin_mux_config.c (114, 124) but marked n.c. in docs/wiring-diagram.svg; the OLED’s CS is PIN_18.</text>
+</svg>

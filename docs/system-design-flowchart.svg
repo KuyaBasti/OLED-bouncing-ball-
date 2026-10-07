@@ -1,0 +1,220 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1100" width="1000" height="1100" role="img" aria-label="OLED Bouncing Ball end-to-end flowchart. Boot, in main(): BoardInit, PinMuxConfig, then bus bring-up in code order (InitTerm on UART0, I2C at 400 kHz, the banner, GSPI at 100 kHz mode 0), then display init: Adafruit_Init (reset pulse plus 20 SSD1351 commands) and fillScreen(BLACK), a 32,768-byte wipe, both calling the Adafruit_OLED.c driver directly rather than through the graphics library. The first ball is drawn at (64, 64) with zero velocity, then a polled loop with no timer and no interrupt handlers repeats: erase with fillCircle radius 4 in black; ReadAccData writes register 0x02 to I2C address 0x18 through i2c_if.c and reads 4 bytes, keeping register 0x05 as x and 0x03 as y (the MSBs, axes crossed); scale a = (int8_t)(raw / 64 x 6) and print the raw values with Report through uart_if.c to the USB debug console; integrate v = (int8_t)((v + a) x 0.99) and pos += v; clamp at 4 and 123 and multiply v by -0.95 on a wall hit; draw with fillCircle BALL_RADIUS 4 in white. Both fillCircle calls go to Adafruit_GFX.c as 13 vertical lines (85 pixel writes, 61 unique), then drawFastVLine in Adafruit_OLED.c sets a GRAM window and streams 2 bytes per pixel through writeCommand / writeData (DC on PIN_45, chip select on PIN_18 as a GPIO) over GSPI to the 128x128 RGB565 SSD1351 panel, whose reset is on PIN_08. oled_test.c demos are compiled but never called. Facts marked with a dagger come from the README, not the code.">
+  <style>
+    .bg{fill:#ffffff}
+    .title{fill:#1f2328;font:600 22px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .sub{fill:#59636e;font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .lbl{fill:#1f2328;font:600 14px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .note{fill:#59636e;font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .glbl{fill:#59636e;font:600 12px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;letter-spacing:.06em}
+    .elbl{fill:#59636e;font:11px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .edge{stroke:#818b98;stroke-width:1.6;fill:none}
+    .edge-dash{stroke:#818b98;stroke-width:1.6;fill:none;stroke-dasharray:6 4}
+    .arrow{fill:#818b98}
+    .group{fill:none;stroke:#d1d9e0;stroke-width:1.2;stroke-dasharray:4 4}
+    .b-blue{fill:#ddf4ff;stroke:#54aeff;stroke-width:1.5}
+    .b-green{fill:#dafbe1;stroke:#4ac26b;stroke-width:1.5}
+    .b-purple{fill:#fbefff;stroke:#c297ff;stroke-width:1.5}
+    .b-orange{fill:#fff1e5;stroke:#fb8f44;stroke-width:1.5}
+    .b-gray{fill:#f6f8fa;stroke:#d1d9e0;stroke-width:1.5}
+    .b-red{fill:#ffebe9;stroke:#ff8182;stroke-width:1.5}
+    .b-planned{fill:none;stroke:#818b98;stroke-width:1.4;stroke-dasharray:5 4}
+    @media (prefers-color-scheme: dark){
+      .bg{fill:#0d1117}
+      .title,.lbl{fill:#e6edf3}
+      .sub,.note,.glbl,.elbl{fill:#9198a1}
+      .edge,.edge-dash{stroke:#9198a1}
+      .arrow{fill:#9198a1}
+      .group{stroke:#3d444d}
+      .b-blue{fill:#0c2d6b;stroke:#4493f8}
+      .b-green{fill:#0f3b1e;stroke:#3fb950}
+      .b-purple{fill:#2e1a4f;stroke:#ab7df8}
+      .b-orange{fill:#3d1f0a;stroke:#f0883e}
+      .b-gray{fill:#151b23;stroke:#3d444d}
+      .b-red{fill:#3c1618;stroke:#f85149}
+      .b-planned{stroke:#9198a1}
+    }
+  </style>
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="arrow" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1000" height="1100" rx="12"/>
+  <text class="title" x="32" y="48">OLED Bouncing Ball — end-to-end flowchart</text>
+  <text class="sub" x="32" y="74">Boot brings up the buses and the panel once; then one polled loop erases, reads the tilt, moves and redraws.</text>
+
+  <!-- ===== Boot: main() before the loop (main.c:180-236) ===== -->
+  <rect class="group" x="24" y="92" width="952" height="124" rx="12"/>
+  <text class="glbl" x="40" y="114">BOOT — main() BEFORE THE LOOP</text>
+
+  <rect class="b-gray" x="40" y="126" width="172" height="76" rx="10"/>
+  <text class="lbl" x="126" y="150" text-anchor="middle">BoardInit()</text>
+  <text class="note" x="126" y="169" text-anchor="middle">vector table base</text>
+  <text class="note" x="126" y="188" text-anchor="middle">PRCMCC3200MCUInit()</text>
+
+  <rect class="b-gray" x="240" y="126" width="190" height="76" rx="10"/>
+  <text class="lbl" x="335" y="150" text-anchor="middle">PinMuxConfig()</text>
+  <text class="note" x="335" y="169" text-anchor="middle">pin_mux_config.c</text>
+  <text class="note" x="335" y="188" text-anchor="middle">I2C0, GSPI, UART0, 3 GPIOs</text>
+
+  <rect class="b-gray" x="458" y="126" width="226" height="76" rx="10"/>
+  <text class="lbl" x="571" y="150" text-anchor="middle">bus bring-up</text>
+  <text class="note" x="571" y="169" text-anchor="middle">InitTerm (UART0) → I2C 400 kHz</text>
+  <text class="note" x="571" y="188" text-anchor="middle">→ banner → GSPI 100 kHz, mode 0</text>
+
+  <rect class="b-gray" x="712" y="126" width="248" height="76" rx="10"/>
+  <text class="lbl" x="836" y="150" text-anchor="middle">display init</text>
+  <text class="note" x="836" y="169" text-anchor="middle">Adafruit_Init: RST + 20 SSD1351 cmds</text>
+  <text class="note" x="836" y="188" text-anchor="middle">fillScreen(BLACK): 32,768-byte wipe</text>
+
+  <path class="edge" d="M212,164 H236" marker-end="url(#ah)"/>
+  <path class="edge" d="M430,164 H454" marker-end="url(#ah)"/>
+  <path class="edge" d="M684,164 H708" marker-end="url(#ah)"/>
+
+  <!-- boot -> loop entry -->
+  <path class="edge" d="M736,202 V244 H490 V310" marker-end="url(#ah)"/>
+  <text class="elbl" x="613" y="236" text-anchor="middle">first ball drawn at (64, 64), v = 0</text>
+
+  <!-- boot -> driver directly (Adafruit_Init and fillScreen live in Adafruit_OLED.c) -->
+  <path class="edge" d="M946,202 V572 H924" marker-end="url(#ah)"/>
+  <text class="elbl" x="936" y="254" text-anchor="end">Adafruit_Init, fillScreen(BLACK):</text>
+  <text class="elbl" x="936" y="268" text-anchor="end">straight to the driver, not via GFX</text>
+
+  <!-- ===== Frame loop (main.c:240-278) ===== -->
+  <rect class="group" x="236" y="262" width="356" height="684" rx="12"/>
+  <text class="glbl" x="252" y="284">FRAME LOOP — main.c</text>
+  <text class="glbl" x="252" y="300">POLLED · NO TIMER · NO ISRs</text>
+
+  <rect class="b-blue" x="252" y="314" width="258" height="76" rx="10"/>
+  <text class="lbl" x="381" y="338" text-anchor="middle">erase</text>
+  <text class="note" x="381" y="357" text-anchor="middle">fillCircle(old x, old y, 4, BLACK)</text>
+  <text class="note" x="381" y="376" text-anchor="middle">radius is a literal 4</text>
+
+  <rect class="b-blue" x="252" y="422" width="258" height="76" rx="10"/>
+  <text class="lbl" x="381" y="446" text-anchor="middle">ReadAccData()</text>
+  <text class="note" x="381" y="465" text-anchor="middle">I2C 0x18: write reg 0x02, read 4 bytes</text>
+  <text class="note" x="381" y="484" text-anchor="middle">x ← 0x05, y ← 0x03: the MSBs, crossed †</text>
+
+  <rect class="b-blue" x="252" y="530" width="258" height="76" rx="10"/>
+  <text class="lbl" x="381" y="554" text-anchor="middle">scale + print</text>
+  <text class="note" x="381" y="573" text-anchor="middle">a = (int8_t)(raw / 64 × 6)</text>
+  <text class="note" x="381" y="592" text-anchor="middle">Report("X Acc: %d, Y Acc: %d")</text>
+
+  <rect class="b-blue" x="252" y="638" width="258" height="76" rx="10"/>
+  <text class="lbl" x="381" y="662" text-anchor="middle">integrate</text>
+  <text class="note" x="381" y="681" text-anchor="middle">v = (int8_t)((v + a) × 0.99)</text>
+  <text class="note" x="381" y="700" text-anchor="middle">pos += v</text>
+
+  <rect class="b-blue" x="252" y="746" width="258" height="76" rx="10"/>
+  <text class="lbl" x="381" y="770" text-anchor="middle">clamp + bounce</text>
+  <text class="note" x="381" y="789" text-anchor="middle">pos ≤ 4 → 4 · pos &gt; 123 → 123</text>
+  <text class="note" x="381" y="808" text-anchor="middle">on a wall hit: v ×= −0.95 (int8_t)</text>
+
+  <rect class="b-blue" x="252" y="854" width="258" height="76" rx="10"/>
+  <text class="lbl" x="381" y="878" text-anchor="middle">draw</text>
+  <text class="note" x="381" y="897" text-anchor="middle">fillCircle(x, y, BALL_RADIUS, WHITE)</text>
+  <text class="note" x="381" y="916" text-anchor="middle">BALL_RADIUS = 4</text>
+
+  <path class="edge" d="M381,390 V418" marker-end="url(#ah)"/>
+  <path class="edge" d="M381,498 V526" marker-end="url(#ah)"/>
+  <path class="edge" d="M381,606 V634" marker-end="url(#ah)"/>
+  <path class="edge" d="M381,714 V742" marker-end="url(#ah)"/>
+  <path class="edge" d="M381,822 V850" marker-end="url(#ah)"/>
+
+  <!-- next frame: draw -> erase -->
+  <path class="edge" d="M510,912 H534 V372 H514" marker-end="url(#ah)"/>
+  <text class="elbl" x="542" y="642">next</text>
+  <text class="elbl" x="542" y="656">frame</text>
+
+  <!-- ===== Left column: TI SDK interface layer + on-board hardware ===== -->
+  <rect class="b-red" x="32" y="314" width="188" height="76" rx="10"/>
+  <text class="lbl" x="126" y="338" text-anchor="middle">BMA222 †</text>
+  <text class="note" x="126" y="357" text-anchor="middle">accelerometer, on-board</text>
+  <text class="note" x="126" y="376" text-anchor="middle">addr 0x18 (24 in main.c)</text>
+
+  <rect class="b-purple" x="32" y="422" width="188" height="76" rx="10"/>
+  <text class="lbl" x="126" y="446" text-anchor="middle">i2c_if.c</text>
+  <text class="note" x="126" y="465" text-anchor="middle">polled I2C master</text>
+  <text class="note" x="126" y="484" text-anchor="middle">I2C_IF_Write, I2C_IF_Read</text>
+
+  <rect class="b-purple" x="32" y="530" width="188" height="76" rx="10"/>
+  <text class="lbl" x="126" y="554" text-anchor="middle">uart_if.c</text>
+  <text class="note" x="126" y="573" text-anchor="middle">Report: malloc + vsnprintf</text>
+  <text class="note" x="126" y="592" text-anchor="middle">+ free on every call</text>
+
+  <rect class="b-red" x="32" y="638" width="188" height="76" rx="10"/>
+  <text class="lbl" x="126" y="662" text-anchor="middle">USB debug console †</text>
+  <text class="note" x="126" y="681" text-anchor="middle">115200 baud · 8N1</text>
+  <text class="note" x="126" y="700" text-anchor="middle">banner, then X/Y every frame</text>
+
+  <path class="edge" d="M252,460 H224" marker-end="url(#ah)"/>
+  <path class="edge" d="M126,422 V394" marker-end="url(#ah)"/>
+  <text class="elbl" x="134" y="410">I2C</text>
+  <path class="edge-dash" d="M252,568 H224" marker-end="url(#ah)"/>
+  <path class="edge" d="M126,606 V634" marker-end="url(#ah)"/>
+  <text class="elbl" x="134" y="624">UART0</text>
+
+  <!-- ===== Right column: demo code + display stack + panel ===== -->
+  <rect class="b-planned" x="636" y="284" width="284" height="76" rx="10"/>
+  <text class="lbl" x="778" y="308" text-anchor="middle">oled_test.c · never called</text>
+  <text class="note" x="778" y="327" text-anchor="middle">line, circle, triangle, font demos</text>
+  <text class="note" x="778" y="346" text-anchor="middle">test patterns · uses GFX + driver</text>
+
+  <rect class="group" x="620" y="378" width="356" height="372" rx="12"/>
+  <text class="glbl" x="636" y="400">DISPLAY STACK</text>
+
+  <rect class="b-green" x="636" y="414" width="284" height="76" rx="10"/>
+  <text class="lbl" x="778" y="438" text-anchor="middle">Adafruit_GFX.c</text>
+  <text class="note" x="778" y="457" text-anchor="middle">fillCircle → 13 vertical lines (Bresenham)</text>
+  <text class="note" x="778" y="476" text-anchor="middle">r = 4: 85 px written, 61 unique</text>
+
+  <rect class="b-green" x="636" y="534" width="284" height="76" rx="10"/>
+  <text class="lbl" x="778" y="558" text-anchor="middle">Adafruit_OLED.c</text>
+  <text class="note" x="778" y="577" text-anchor="middle">GRAM window: SETCOLUMN, SETROW,</text>
+  <text class="note" x="778" y="596" text-anchor="middle">WRITERAM, then a 2-byte/pixel stream</text>
+
+  <rect class="b-green" x="636" y="654" width="284" height="76" rx="10"/>
+  <text class="lbl" x="778" y="678" text-anchor="middle">SPI transport (same file)</text>
+  <text class="note" x="778" y="697" text-anchor="middle">writeCommand / writeData</text>
+  <text class="note" x="778" y="716" text-anchor="middle">DC on PIN_45, CS bit-banged on PIN_18</text>
+
+  <rect class="b-red" x="636" y="806" width="284" height="76" rx="10"/>
+  <text class="lbl" x="778" y="830" text-anchor="middle">SSD1351 OLED panel</text>
+  <text class="note" x="778" y="849" text-anchor="middle">128 × 128 · RGB565</text>
+  <text class="note" x="778" y="868" text-anchor="middle">RST on PIN_08, pulsed by Adafruit_Init</text>
+
+  <path class="edge-dash" d="M778,360 V410" marker-end="url(#ah)"/>
+  <path class="edge" d="M778,490 V530" marker-end="url(#ah)"/>
+  <text class="elbl" x="788" y="516">drawFastVLine</text>
+  <path class="edge" d="M778,610 V650" marker-end="url(#ah)"/>
+  <path class="edge" d="M778,730 V802" marker-end="url(#ah)"/>
+  <text class="elbl" x="788" y="774">GSPI 100 kHz, mode 0</text>
+  <text class="elbl" x="788" y="788">one byte per CS cycle</text>
+
+  <!-- erase and draw both call fillCircle in Adafruit_GFX.c -->
+  <path class="edge" d="M510,330 H606 V452 H632" marker-end="url(#ah)"/>
+  <text class="elbl" x="558" y="322" text-anchor="middle">fillCircle</text>
+  <path class="edge" d="M420,930 V962 H606 V452 H632" marker-end="url(#ah)"/>
+  <text class="elbl" x="513" y="978" text-anchor="middle">fillCircle</text>
+
+  <!-- ===== Legend ===== -->
+  <text class="glbl" x="40" y="1010">LEGEND</text>
+  <rect class="b-gray" x="40" y="1022" width="26" height="14" rx="4"/>
+  <text class="note" x="78" y="1033">boot, main() before the loop</text>
+  <rect class="b-blue" x="290" y="1022" width="26" height="14" rx="4"/>
+  <text class="note" x="328" y="1033">frame loop (main.c)</text>
+  <rect class="b-green" x="500" y="1022" width="26" height="14" rx="4"/>
+  <text class="note" x="538" y="1033">display stack</text>
+  <rect class="b-purple" x="730" y="1022" width="26" height="14" rx="4"/>
+  <text class="note" x="768" y="1033">TI SDK interface layer</text>
+  <rect class="b-red" x="40" y="1044" width="26" height="14" rx="4"/>
+  <text class="note" x="78" y="1055">hardware</text>
+  <rect class="b-planned" x="290" y="1044" width="26" height="14" rx="4"/>
+  <text class="note" x="328" y="1055">compiled, never called</text>
+  <path class="edge" d="M500,1051 H526" marker-end="url(#ah)"/>
+  <text class="note" x="538" y="1055">call / control flow</text>
+  <path class="edge-dash" d="M730,1051 H756" marker-end="url(#ah)"/>
+  <text class="note" x="768" y="1055">debug readout / uncalled code</text>
+  <text class="note" x="40" y="1080">† from the README, not the code: the BMA222 part and its register map (MSBs, axes crossed), on-board placement, the USB console, 115200 baud.</text>
+</svg>

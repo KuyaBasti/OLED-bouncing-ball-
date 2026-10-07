@@ -1,84 +1,138 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 400" width="720" font-family="Helvetica, Arial, sans-serif">
-  <!-- Wiring: verified against pin_mux_config.c and Adafruit_OLED.c GPIO usage -->
-  <rect x="0" y="0" width="720" height="400" fill="#ffffff"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 516" width="1000" height="516" role="img" aria-label="OLED Bouncing Ball wiring: CC3200 LaunchPad PIN_01 SCL and PIN_02 SDA to the on-board BMA222 accelerometer SCL and SDA (I2C 400 kHz, address 0x18); PIN_55 TX to the on-board USB debug UART RX and PIN_57 RX to its TX (UART0 115200 8N1); to the SSD1351 128x128 OLED over GSPI 100 kHz: PIN_05 SCLK to SCLK, PIN_07 MOSI to DIN, PIN_18 CS to CS, PIN_45 DC to DC, PIN_08 RST to RST, 3V3 to VCC, GND to GND; PIN_06 MISO and PIN_50 CS are muxed but not connected.">
+  <style>
+    .bg{fill:#ffffff}
+    .title{fill:#1f2328;font:600 22px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .sub{fill:#59636e;font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .lbl{fill:#1f2328;font:600 14px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .note{fill:#59636e;font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .glbl{fill:#59636e;font:600 12px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;letter-spacing:.06em}
+    .elbl{fill:#59636e;font:11px -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+    .edge{stroke:#818b98;stroke-width:1.6;fill:none}
+    .edge-dash{stroke:#818b98;stroke-width:1.6;fill:none;stroke-dasharray:6 4}
+    .arrow{fill:#818b98}
+    .group{fill:none;stroke:#d1d9e0;stroke-width:1.2;stroke-dasharray:4 4}
+    .b-blue{fill:#ddf4ff;stroke:#54aeff;stroke-width:1.5}
+    .b-green{fill:#dafbe1;stroke:#4ac26b;stroke-width:1.5}
+    .b-purple{fill:#fbefff;stroke:#c297ff;stroke-width:1.5}
+    .b-orange{fill:#fff1e5;stroke:#fb8f44;stroke-width:1.5}
+    .b-gray{fill:#f6f8fa;stroke:#d1d9e0;stroke-width:1.5}
+    .b-red{fill:#ffebe9;stroke:#ff8182;stroke-width:1.5}
+    .b-planned{fill:none;stroke:#818b98;stroke-width:1.4;stroke-dasharray:5 4}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .wire{stroke:#59636e;stroke-width:1.4;fill:none}
+    .dot{fill:#59636e}
+    @media (prefers-color-scheme: dark){
+      .bg{fill:#0d1117}
+      .title,.lbl{fill:#e6edf3}
+      .sub,.note,.glbl,.elbl{fill:#9198a1}
+      .edge,.edge-dash{stroke:#9198a1}
+      .arrow{fill:#9198a1}
+      .group{stroke:#3d444d}
+      .b-blue{fill:#0c2d6b;stroke:#4493f8}
+      .b-green{fill:#0f3b1e;stroke:#3fb950}
+      .b-purple{fill:#2e1a4f;stroke:#ab7df8}
+      .b-orange{fill:#3d1f0a;stroke:#f0883e}
+      .b-gray{fill:#151b23;stroke:#3d444d}
+      .b-red{fill:#3c1618;stroke:#f85149}
+      .b-planned{stroke:#9198a1}
+      .wire{stroke:#9198a1}
+      .dot{fill:#9198a1}
+    }
+  </style>
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path class="arrow" d="M0,0 L10,5 L0,10 z"/>
+    </marker>
+  </defs>
+  <!-- Wiring: signal pins from pin_mux_config.c and the GPIO writes in Adafruit_OLED.c -->
+  <rect class="bg" width="1000" height="516" rx="12"/>
+  <text class="title" x="32" y="48">OLED Bouncing Ball — wiring</text>
+  <text class="sub" x="32" y="74">The BMA222 and the USB debug UART are on the LaunchPad; the SSD1351 OLED is external, on GSPI plus three GPIOs.</text>
 
-  <!-- ===== Component boxes ===== -->
-  <!-- CC3200 -->
-  <text x="365" y="68" font-size="13" fill="#000" text-anchor="middle">CC3200 LaunchPad</text>
-  <rect x="275" y="75" width="180" height="180" fill="#ffffff" stroke="#000" stroke-width="1.2"/>
+  <!-- ===== BMA222 accelerometer (on-board) ===== -->
+  <rect class="b-orange" x="40" y="110" width="230" height="116" rx="10"/>
+  <text class="lbl" x="155" y="135" text-anchor="middle">BMA222 accelerometer</text>
+  <text class="note" x="155" y="155" text-anchor="middle">on-board · I2C addr 0x18</text>
+  <text class="note mono" x="258" y="184" text-anchor="end">SCL</text>
+  <text class="note mono" x="258" y="208" text-anchor="end">SDA</text>
 
-  <!-- BMA222 (on-board) -->
-  <text x="100" y="68" font-size="13" fill="#000" text-anchor="middle">BMA222 accelerometer</text>
-  <rect x="30" y="75" width="140" height="60" fill="#ffffff" stroke="#000" stroke-width="1.2"/>
-  <text x="100" y="152" font-size="11" fill="#000" text-anchor="middle">on-board &#183; I2C addr 0x18</text>
+  <!-- ===== USB debug UART (on-board) ===== -->
+  <rect class="b-gray" x="40" y="278" width="230" height="116" rx="10"/>
+  <text class="lbl" x="155" y="303" text-anchor="middle">USB debug UART (on-board)</text>
+  <text class="note" x="155" y="323" text-anchor="middle">UART0 — 115200 · 8N1</text>
+  <text class="note mono" x="258" y="352" text-anchor="end">RX</text>
+  <text class="note mono" x="258" y="376" text-anchor="end">TX</text>
 
-  <!-- SSD1351 OLED -->
-  <text x="630" y="68" font-size="13" fill="#000" text-anchor="middle">SSD1351 OLED &#8212; 128&#215;128</text>
-  <rect x="560" y="75" width="140" height="145" fill="#ffffff" stroke="#000" stroke-width="1.2"/>
-  <text x="630" y="237" font-size="11" fill="#000" text-anchor="middle">RGB565 &#183; 65,536 colors</text>
-
-  <!-- USB debug UART (on-board) -->
-  <text x="115" y="283" font-size="13" fill="#000" text-anchor="middle">USB debug UART (on-board)</text>
-  <rect x="40" y="290" width="150" height="55" fill="#ffffff" stroke="#000" stroke-width="1.2"/>
-  <text x="115" y="362" font-size="11" fill="#000" text-anchor="middle">UART0 &#8212; 115200 &#183; 8N1</text>
-
-  <!-- ===== CC3200 pin rows ===== -->
+  <!-- ===== CC3200 LaunchPad ===== -->
+  <rect class="b-blue" x="370" y="110" width="260" height="284" rx="10"/>
+  <text class="lbl" x="500" y="135" text-anchor="middle">CC3200 LaunchPad</text>
   <!-- left column -->
-  <text x="281" y="99"  font-size="11" fill="#000">SCL &#183; PIN_01</text>
-  <text x="281" y="117" font-size="11" fill="#000">SDA &#183; PIN_02</text>
-  <text x="281" y="153" font-size="11" fill="#000">TX &#183; PIN_55</text>
-  <text x="281" y="171" font-size="11" fill="#000">RX &#183; PIN_57</text>
+  <text class="note mono" x="382" y="184">SCL · PIN_01</text>
+  <text class="note mono" x="382" y="208">SDA · PIN_02</text>
+  <text class="note mono" x="382" y="352">TX · PIN_55</text>
+  <text class="note mono" x="382" y="376">RX · PIN_57</text>
   <!-- right column -->
-  <text x="449" y="99"  font-size="11" fill="#000" text-anchor="end">SCLK &#183; PIN_05</text>
-  <text x="449" y="117" font-size="11" fill="#000" text-anchor="end">MOSI &#183; PIN_07</text>
-  <text x="449" y="135" font-size="11" fill="#000" text-anchor="end">CS &#183; PIN_18</text>
-  <text x="449" y="153" font-size="11" fill="#000" text-anchor="end">DC &#183; PIN_45</text>
-  <text x="449" y="171" font-size="11" fill="#000" text-anchor="end">RST &#183; PIN_08</text>
-  <text x="449" y="189" font-size="11" fill="#000" text-anchor="end">3V3</text>
-  <text x="449" y="207" font-size="11" fill="#000" text-anchor="end">GND</text>
-  <text x="449" y="225" font-size="11" fill="#000" text-anchor="end">MISO &#183; PIN_06</text>
-  <text x="449" y="243" font-size="11" fill="#000" text-anchor="end">CS &#183; PIN_50</text>
+  <text class="note mono" x="618" y="184" text-anchor="end">SCLK · PIN_05</text>
+  <text class="note mono" x="618" y="208" text-anchor="end">MOSI · PIN_07</text>
+  <text class="note mono" x="618" y="232" text-anchor="end">CS · PIN_18</text>
+  <text class="note mono" x="618" y="256" text-anchor="end">DC · PIN_45</text>
+  <text class="note mono" x="618" y="280" text-anchor="end">RST · PIN_08</text>
+  <text class="note mono" x="618" y="304" text-anchor="end">3V3</text>
+  <text class="note mono" x="618" y="328" text-anchor="end">GND</text>
+  <text class="note mono" x="618" y="352" text-anchor="end">MISO · PIN_06</text>
+  <text class="note mono" x="618" y="376" text-anchor="end">CS · PIN_50</text>
 
-  <!-- ===== BMA222 pin rows ===== -->
-  <text x="164" y="99"  font-size="11" fill="#000" text-anchor="end">SCL</text>
-  <text x="164" y="117" font-size="11" fill="#000" text-anchor="end">SDA</text>
-
-  <!-- ===== OLED pin rows ===== -->
-  <text x="566" y="99"  font-size="11" fill="#000">SCLK</text>
-  <text x="566" y="117" font-size="11" fill="#000">DIN (MOSI)</text>
-  <text x="566" y="135" font-size="11" fill="#000">CS</text>
-  <text x="566" y="153" font-size="11" fill="#000">DC</text>
-  <text x="566" y="171" font-size="11" fill="#000">RST</text>
-  <text x="566" y="189" font-size="11" fill="#000">VCC &#183; 3V3</text>
-  <text x="566" y="207" font-size="11" fill="#000">GND</text>
-
-  <!-- ===== UART bridge pin rows ===== -->
-  <text x="184" y="314" font-size="11" fill="#000" text-anchor="end">RX</text>
-  <text x="184" y="332" font-size="11" fill="#000" text-anchor="end">TX</text>
+  <!-- ===== SSD1351 OLED (external) ===== -->
+  <rect class="b-purple" x="730" y="110" width="230" height="236" rx="10"/>
+  <text class="lbl" x="845" y="135" text-anchor="middle">SSD1351 OLED — 128×128</text>
+  <text class="note" x="845" y="155" text-anchor="middle">RGB565 · 65,536 colors</text>
+  <text class="note mono" x="742" y="184">SCLK</text>
+  <text class="note mono" x="742" y="208">DIN (MOSI)</text>
+  <text class="note mono" x="742" y="232">CS</text>
+  <text class="note mono" x="742" y="256">DC</text>
+  <text class="note mono" x="742" y="280">RST</text>
+  <text class="note mono" x="742" y="304">VCC · 3V3</text>
+  <text class="note mono" x="742" y="328">GND</text>
 
   <!-- ===== Wires ===== -->
   <!-- I2C bus: BMA222 to CC3200 -->
-  <text x="222" y="86" font-size="11" fill="#000" text-anchor="middle">I2C &#8212; 400 kHz</text>
-  <polyline points="170,95 275,95"   fill="none" stroke="#000" stroke-width="1.2"/>
-  <polyline points="170,113 275,113" fill="none" stroke="#000" stroke-width="1.2"/>
+  <text class="elbl" x="320" y="168" text-anchor="middle">I2C — 400 kHz</text>
+  <path class="wire" d="M270,180 H370"/>
+  <path class="wire" d="M270,204 H370"/>
+
+  <!-- UART0: CC3200 TX to bridge RX, CC3200 RX to bridge TX -->
+  <path class="wire" d="M270,348 H370"/>
+  <path class="wire" d="M270,372 H370"/>
 
   <!-- SPI + control + power: CC3200 to OLED -->
-  <text x="507" y="86" font-size="11" fill="#000" text-anchor="middle">GSPI &#8212; 100 kHz</text>
-  <polyline points="455,95 560,95"   fill="none" stroke="#000" stroke-width="1.2"/>
-  <polyline points="455,113 560,113" fill="none" stroke="#000" stroke-width="1.2"/>
-  <polyline points="455,131 560,131" fill="none" stroke="#000" stroke-width="1.2"/>
-  <polyline points="455,149 560,149" fill="none" stroke="#000" stroke-width="1.2"/>
-  <polyline points="455,167 560,167" fill="none" stroke="#000" stroke-width="1.2"/>
-  <polyline points="455,185 560,185" fill="none" stroke="#000" stroke-width="1.2"/>
-  <polyline points="455,203 560,203" fill="none" stroke="#000" stroke-width="1.2"/>
+  <text class="elbl" x="680" y="168" text-anchor="middle">GSPI — 100 kHz</text>
+  <path class="wire" d="M630,180 H730"/>
+  <path class="wire" d="M630,204 H730"/>
+  <path class="wire" d="M630,228 H730"/>
+  <path class="wire" d="M630,252 H730"/>
+  <path class="wire" d="M630,276 H730"/>
+  <path class="wire" d="M630,300 H730"/>
+  <path class="wire" d="M630,324 H730"/>
 
   <!-- muxed but unconnected: hardware MISO and hardware CS -->
-  <polyline points="455,221 467,221" fill="none" stroke="#000" stroke-width="1.2"/>
-  <text x="471" y="225" font-size="11" fill="#000">n.c.</text>
-  <polyline points="455,239 467,239" fill="none" stroke="#000" stroke-width="1.2"/>
-  <text x="471" y="243" font-size="11" fill="#000">n.c.</text>
+  <path class="wire" d="M630,348 H644"/>
+  <text class="elbl" x="650" y="352">n.c.</text>
+  <path class="wire" d="M630,372 H644"/>
+  <text class="elbl" x="650" y="376">n.c.</text>
 
-  <!-- UART0: CC3200 to USB debug bridge -->
-  <polyline points="275,149 224,149 224,310 190,310" fill="none" stroke="#000" stroke-width="1.2"/>
-  <polyline points="275,167 232,167 232,328 190,328" fill="none" stroke="#000" stroke-width="1.2"/>
+  <!-- ===== Legend ===== -->
+  <text class="glbl" x="32" y="436">LEGEND</text>
+  <rect class="b-blue" x="32" y="450" width="26" height="14" rx="4"/>
+  <text class="note" x="70" y="461">CC3200 LaunchPad (MCU)</text>
+  <rect class="b-purple" x="272" y="450" width="26" height="14" rx="4"/>
+  <text class="note" x="310" y="461">SSD1351 OLED display</text>
+  <rect class="b-orange" x="512" y="450" width="26" height="14" rx="4"/>
+  <text class="note" x="550" y="461">sensor (BMA222)</text>
+  <rect class="b-gray" x="752" y="450" width="26" height="14" rx="4"/>
+  <text class="note" x="790" y="461">USB debug console</text>
+  <path class="wire" d="M32,483 H58"/>
+  <text class="note" x="70" y="487">wire</text>
+  <path class="wire" d="M272,483 H286"/>
+  <text class="elbl" x="290" y="487">n.c.</text>
+  <text class="note" x="315" y="487">= pin muxed in code, not wired</text>
 </svg>
